@@ -1,0 +1,54 @@
+name: NearMiss
+options:
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+packages:
+  NearMissCore:
+    path: NearMissCore
+targets:
+  NearMiss:
+    type: application
+    platform: iOS
+    sources:
+      - App
+    dependencies:
+      - package: NearMissCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.mikealvarado.nearmiss
+        PRODUCT_NAME: NearMiss
+        TARGETED_DEVICE_FAMILY: "1"
+        SWIFT_VERSION: "5.0"
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        CODE_SIGN_STYLE: Automatic
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleDisplayName: Casi
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        ITSAppUsesNonExemptEncryption: false
+        LSSupportsOpeningDocumentsInPlace: false
+        NSPhotoLibraryUsageDescription: >-
+          Casi lee solo la fecha y la ubicación de tus fotos para encontrar
+          dónde tú y tu pareja casi se cruzan. Las fotos no se abren, no se
+          copian y nada sale de tu iPhone.
+        UTExportedTypeDeclarations:
+          - UTTypeIdentifier: io.github.mikealvarado.nearmiss.trail
+            UTTypeDescription: Rastro de Casi
+            UTTypeConformsTo:
+              - public.json
+            UTTypeTagSpecification:
+              public.filename-extension:
+                - nearmiss
+        CFBundleDocumentTypes:
+          - CFBundleTypeName: Rastro de Casi
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Owner
+            LSItemContentTypes:
+              - io.github.mikealvarado.nearmiss.trail
