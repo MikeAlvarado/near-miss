@@ -2,13 +2,13 @@
 
 An iPhone app that shows every time you and your partner almost met before you met.
 
-It reads only the date and the place of the photos on each phone, turns them into a short list of "map cell + day", and compares the two lists. Everything runs on the device. There is no server, no account and no analytics.
+It reads only the date and the place of the photos on each phone, turns them into a short list of "map cell + day", compares the two lists, and paints both trails on a map. The reading and the comparison run on the device. There is no server, no account and no analytics.
 
 The interface is in Spanish; the app's name on the home screen is **Casi**.
 
-| You almost met | You never did, but came close |
-| --- | --- |
-| <img src="docs/match.png" width="280" alt="Result screen: almost met 2 times"> | <img src="docs/closest.png" width="280" alt="Result screen: the closest you ever were"> |
+| Start | The map paints itself | The near miss |
+| --- | --- | --- |
+| <img src="docs/welcome.png" width="240" alt="Welcome screen with two trails of light"> | <img src="docs/painting.png" width="240" alt="Map with the trails being drawn in order of time"> | <img src="docs/near-miss.png" width="240" alt="Map zoomed on the two points, 300 m apart on the same day"> |
 
 The screenshots show the demo mode. Ana, Beto and Carla do not exist.
 
@@ -18,11 +18,13 @@ The screenshots show the demo mode. Ana, Beto and Carla do not exist.
 2. **Reduce.** Each photo becomes a [geohash](https://en.wikipedia.org/wiki/Geohash) cell of about 150 m and a day number. Duplicates collapse, so a day in one place is one entry. This list is your "trail" (*rastro*).
 3. **Exchange.** You export the trail as a small `.nearmiss` file and send it with AirDrop or Messages through the system share sheet. Your partner does the same. Opening the file in the app imports it.
 4. **Compare.** The app matches the two trails on your phone. The starting tolerance is 500 m on the same day; you can widen it up to 5 km and 7 days. You can also give the date you met, so only earlier days count.
-5. **Always a result.** Photos only cover the places where someone took one, so exact matches are rare. When there are none, the app shows the closest you ever were, for example "2 km and 3 days apart, March 2018".
+5. **Paint.** The result is a map. Both trails are drawn in the order they happened, then the camera flies to the place where you almost met. Swipe the cards to visit each near miss.
+6. **Always a result.** Photos only cover the places where someone took one, so exact matches are rare. When there are none, the app shows the closest you ever were, for example "2 km and 3 days apart, March 2018".
 
 ## Privacy
 
-- The app makes no network requests. There is no backend to send anything to.
+- The app has no backend and its own code makes no network requests.
+- The result map is Apple's MapKit, which downloads map tiles from Apple for the area on screen. Apple can therefore see which areas you look at. The trails and the photos are drawn on top on the device and are not sent.
 - Photos and exact coordinates never leave the phone.
 - The trail file is the one thing that leaves it, and only when you share it. It holds approximate places (cells of about 150 m) and days, with no time of day. Whoever gets it can see roughly where you have been, so the export screen says so before the share sheet opens.
 - "Abrir en Mapas" on a result opens Apple Maps at the approximate spot. That happens only when you tap it.
@@ -70,7 +72,7 @@ swift test --package-path NearMissCore
 
 ```
 NearMissCore/   Pure Swift: geohash, reduction, trail file, comparison, demo data, tests
-App/            SwiftUI app: PhotoKit reader, screens, share and import
+App/            SwiftUI app: PhotoKit reader, map, screens, share and import
 project.yml     XcodeGen project definition
 ```
 

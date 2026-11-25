@@ -1,272 +1,591 @@
+import MapKit
 import NearMissCore
 import SwiftUI
 
+/// The result is a map. Both trails are painted on it in the order they happened,
+/// then the camera flies to the place where the two almost met.
 struct ResultsView: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+    @State private var scene: MapScene?
+    /// Sightings after this day are not drawn yet. `Int.max` shows everything.
+    @State private var revealDay = Int.max
+    @State private var isReplaying = false
+    @State private var selection: String? = ResultsView.overviewID
+    @State private var camera: MapCameraPosition = .automatic
+    @State private var showingTuning = false
+    @State private var replayCount = 0
+
+    static let overviewID = "overview"
     static let distances: [Double] = [100, 250, 500, 1000, 2000, 5000]
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                if let comparison = model.comparison {
-                    headline(comparison)
-                    toleranceCard
+        Map(position: $camera, interactionModes: [.pan, .zoom]) {
+            mapContent
+        }
+        .mapStyle(.standard(elevation: .flat, emphasis: .muted, pointsOfInterest: .excludingAll))
+        .mapControlVisibility(.hidden)
+        .safeAreaInset(edge: .bottom, spacing: 0) { carousel }
+        .overlay(alignment: .top) { topPill.padding(.top, 8) }
+        .background(Theme.bg)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(.hidden, for: .navigationBar)
+        .toolbar {
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                Button {
+                    replayCount += 1
+                } label: {
+                    Image(systemName: "arrow.counterclockwise")
+                }
+                .accessibilityLabel("Volver a pintar el mapa")
+                .disabled(isReplaying)
 
-                    if comparison.matches.isEmpty {
-                        if let closest = comparison.closest {
-                            ClosestCard(miss: closest, partner: model.partnerName)
-                        }
-                    } else {
-                        ForEach(comparison.matches) { miss in
-                            MissCard(
-                                miss: miss,
-                                partner: model.partnerName,
-                                isClosest: miss == comparison.closest && comparison.matches.count > 1
-                            )
-                        }
-                    }
+                Button {
+                    showingTuning = true
+                } label: {
+                    Image(systemName: "slider.horizontal.3")
+                }
+                .accessibilityLabel("Ajustar qué cuenta como casi")
+            }
+        }
+        .sheet(isPresented: $showingTuning) {
+            TuningSheet()
+                .presentationDetents([.height(400)])
+                .presentationBackground(Theme.surface)
+                .presentationDragIndicator(.visible)
+        }
+        .onAppear { model.recompute() }
+        .task(id: sceneKey) { await buildAndReplay() }
+        .onChange(of: selection) { focus(animated: true) }
+        .onChange(of: model.comparison) {
+            // The tolerance moved: the card that was selected may be gone.
+            if let selection, selection != Self.overviewID, !cards.contains(where: { $0.id == selection }) {
+                self.selection = Self.overviewID
+            }
+        }
+    }
 
-                    Text("Solo hay datos donde alguno de los dos tomó una foto con ubicación. Las distancias se miden entre cuadros del mapa de unos 150 m, así que son aproximadas.")
-                        .font(.footnote)
-                        .foregroundStyle(Theme.muted)
-                        .padding(.top, 4)
-                } else {
-                    ProgressView("Comparando…")
-                        .frame(maxWidth: .infinity)
-                        .padding(.top, 80)
+    // MARK: - Map
+
+    @MapContentBuilder
+    private var mapContent: some MapContent {
+        if let scene {
+            trailLine(scene.mine, color: Theme.coral)
+            trailLine(scene.theirs, color: Theme.teal)
+
+            ForEach(scene.mineDots.filter { $0.day <= revealDay }) { point in
+                Annotation("", coordinate: point.coordinate, anchor: .center) {
+                    GlowDot(color: Theme.coral)
                 }
             }
-            .padding(.horizontal, 20)
-            .padding(.bottom, 28)
+            ForEach(scene.theirsDots.filter { $0.day <= revealDay }) { point in
+                Annotation("", coordinate: point.coordinate, anchor: .center) {
+                    GlowDot(color: Theme.teal)
+                }
+            }
+
+            if !isReplaying {
+                ForEach(cards) { miss in
+                    missMarker(miss)
+                }
+            }
         }
-        .background(Theme.paper.ignoresSafeArea())
-        .navigationBarTitleDisplayMode(.inline)
-        .onAppear { model.recompute() }
     }
+
+    @MapContentBuilder
+    private func trailLine(_ points: [TrailPoint], color: Color) -> some MapContent {
+        let coordinates = points.filter { $0.day <= revealDay }.map(\.coordinate)
+        if coordinates.count >= 2 {
+            MapPolyline(coordinates: coordinates, contourStyle: .geodesic)
+                .stroke(color.opacity(0.22), style: StrokeStyle(lineWidth: 10, lineCap: .round, lineJoin: .round))
+            MapPolyline(coordinates: coordinates, contourStyle: .geodesic)
+                .stroke(color.opacity(0.95), style: StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
+        }
+    }
+
+    @MapContentBuilder
+    private func missMarker(_ miss: NearMiss) -> some MapContent {
+        if let a = MapScene.coordinate(of: miss.mine.cell), let b = MapScene.coordinate(of: miss.theirs.cell) {
+            let isSelected = selection == miss.id
+            let middle = MapScene.midpoint(a, b)
+
+            if isSelected {
+                MapCircle(center: middle, radius: max(miss.meters / 2 + 90, 160))
+                    .foregroundStyle(.white.opacity(0.07))
+                    .stroke(.white.opacity(0.45), lineWidth: 1)
+                MapPolyline(coordinates: [a, b])
+                    .stroke(.white, style: StrokeStyle(lineWidth: 2, lineCap: .round, dash: [3, 6]))
+                Annotation("Tú", coordinate: a, anchor: .center) {
+                    EndpointDot(color: Theme.coral)
+                }
+                Annotation(model.partnerName.capitalizedFirst, coordinate: b, anchor: .center) {
+                    EndpointDot(color: Theme.teal)
+                }
+            } else {
+                Annotation("", coordinate: middle, anchor: .center) {
+                    Button {
+                        withAnimation(.snappy) { selection = miss.id }
+                    } label: {
+                        PulseMarker()
+                    }
+                    .accessibilityLabel("Ver el casi del \(Phrase.date(miss.mine.day))")
+                }
+            }
+        }
+    }
+
+    // MARK: - Chrome over the map
 
     @ViewBuilder
-    private func headline(_ comparison: Comparison) -> some View {
-        let count = comparison.matches.count
-        VStack(alignment: .leading, spacing: 8) {
-            if count > 0 {
-                Text("Casi se conocen")
-                    .font(.title3.weight(.medium))
-                    .foregroundStyle(Theme.muted)
-                Text(count == 1 ? "1 vez" : "\(count) veces")
-                    .font(Theme.title(56))
-                    .foregroundStyle(Theme.coral)
-                    .contentTransition(.numericText())
-            } else if let closest = comparison.closest {
-                Text("Nunca se cruzaron.")
-                    .font(Theme.title(40))
-                    .foregroundStyle(Theme.ink)
-                Text(closest.meters <= 10_000 && closest.dayGap <= 30
-                    ? "Pero una vez estuvieron cerca."
-                    : "Esto es lo más cerca que llegaron.")
-                    .font(.title3.weight(.medium))
-                    .foregroundStyle(Theme.muted)
-            } else {
-                Text("No hay con qué comparar.")
-                    .font(Theme.title(34))
-                    .foregroundStyle(Theme.ink)
-                Text("Alguno de los dos rastros no tiene lugares en ese periodo. Prueba quitando la fecha en que se conocieron.")
-                    .font(.subheadline)
-                    .foregroundStyle(Theme.muted)
+    private var topPill: some View {
+        if isReplaying, revealDay != Int.max {
+            Text(Phrase.monthAndYear(revealDay).capitalizedFirst)
+                .font(.system(.subheadline, design: .serif).weight(.bold))
+                .monospacedDigit()
+                .foregroundStyle(Theme.text)
+                .contentTransition(.numericText())
+                .pill()
+        } else {
+            HStack(spacing: 14) {
+                HStack(spacing: 7) {
+                    GlowDot(color: Theme.coral)
+                    Text("Tú")
+                }
+                HStack(spacing: 7) {
+                    GlowDot(color: Theme.teal)
+                    Text(model.partnerName.capitalizedFirst)
+                }
             }
+            .font(.footnote.weight(.semibold))
+            .foregroundStyle(Theme.text)
+            .pill()
         }
-        .animation(.snappy, value: count)
-        .padding(.bottom, 4)
     }
 
-    private var toleranceCard: some View {
-        @Bindable var model = model
-        let index = Self.distances.firstIndex(of: model.tolerance.meters) ?? 2
+    private var carousel: some View {
+        ScrollView(.horizontal) {
+            LazyHStack(spacing: 12) {
+                OverviewCard(
+                    comparison: model.comparison,
+                    partner: model.partnerName,
+                    isReplaying: isReplaying,
+                    tune: { showingTuning = true }
+                )
+                .cardFrame()
+                .id(Self.overviewID)
 
-        return Card {
-            VStack(alignment: .leading, spacing: 14) {
-                Text("¿Qué cuenta como “casi”?")
-                    .font(.headline)
-                    .foregroundStyle(Theme.ink)
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("A menos de \(Phrase.distance(model.tolerance.meters))")
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(Theme.ink)
-                    Slider(
-                        value: Binding(
-                            get: { Double(index) },
-                            set: { model.tolerance.meters = Self.distances[Int($0.rounded())] }
-                        ),
-                        in: 0...Double(Self.distances.count - 1),
-                        step: 1
+                // The answer waits until the map is painted.
+                ForEach(Array((isReplaying ? [] : cards).enumerated()), id: \.element.id) { index, miss in
+                    MissCard(
+                        miss: miss,
+                        partner: model.partnerName,
+                        label: label(for: miss, at: index)
                     )
-                    .accessibilityLabel("Distancia máxima")
-                    .accessibilityValue(Phrase.distance(model.tolerance.meters))
-                }
-
-                Stepper(value: $model.tolerance.days, in: 0...7) {
-                    Text(Phrase.tolerance(days: model.tolerance.days))
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(Theme.ink)
-                }
-
-                Divider()
-
-                Toggle(isOn: $model.onlyBeforeMeeting) {
-                    Text("Solo antes de conocernos")
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(Theme.ink)
-                }
-                if model.onlyBeforeMeeting {
-                    DatePicker(
-                        "Nos conocimos el",
-                        selection: $model.metDate,
-                        in: ...Date(),
-                        displayedComponents: .date
-                    )
-                    .font(.subheadline)
-                    .environment(\.locale, Phrase.locale)
+                    .cardFrame()
+                    .id(miss.id)
                 }
             }
+            .scrollTargetLayout()
+        }
+        .contentMargins(.horizontal, 20, for: .scrollContent)
+        .scrollTargetBehavior(.viewAligned)
+        .scrollPosition(id: $selection)
+        .scrollIndicators(.hidden)
+        .frame(height: 214)
+        .padding(.top, 28)
+        .padding(.bottom, 6)
+        .background(
+            LinearGradient(
+                colors: [Theme.bg.opacity(0), Theme.bg.opacity(0.92)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
+            .allowsHitTesting(false)
+        )
+    }
+
+    // MARK: - Data
+
+    /// The near misses within the tolerance, or the single closest one when there are none.
+    private var cards: [NearMiss] {
+        guard let comparison = model.comparison else { return [] }
+        if !comparison.matches.isEmpty { return comparison.matches }
+        return comparison.closest.map { [$0] } ?? []
+    }
+
+    private func label(for miss: NearMiss, at index: Int) -> String {
+        guard let comparison = model.comparison else { return "" }
+        if comparison.matches.isEmpty { return "LO MÁS CERCA QUE ESTUVIERON" }
+        if comparison.matches.count == 1 { return "EL CASI" }
+        let position = "CASI \(index + 1) DE \(comparison.matches.count)"
+        return miss == comparison.closest ? "\(position) · EL MÁS CERCANO" : position
+    }
+
+    private var sceneKey: String {
+        let before = model.beforeDay.map(String.init) ?? "-"
+        return [
+            model.demo?.rawValue ?? "real",
+            String(model.myTrail?.sightings.count ?? 0),
+            String(model.partnerTrail?.sightings.count ?? 0),
+            before,
+            String(replayCount),
+        ].joined(separator: "|")
+    }
+
+    // MARK: - Motion
+
+    private func buildAndReplay() async {
+        guard let mine = model.myTrail, let theirs = model.partnerTrail else { return }
+        let built = MapScene(mine: mine, theirs: theirs, beforeDay: model.beforeDay)
+        scene = built
+        selection = Self.overviewID
+        camera = .region(built.region)
+
+        guard !reduceMotion, built.days.count > 1 else {
+            revealDay = .max
+            isReplaying = false
+            return
+        }
+
+        // Paint the trails in the order they happened.
+        isReplaying = true
+        revealDay = built.days[0] - 1
+        try? await Task.sleep(for: .milliseconds(700))
+        let frames = min(built.days.count, 110)
+        let pause = max(28, min(170, 3600 / frames))
+        for frame in 1...frames {
+            if Task.isCancelled { return }
+            let index = (built.days.count - 1) * frame / frames
+            withAnimation(.linear(duration: Double(pause) / 1000)) {
+                revealDay = built.days[index]
+            }
+            try? await Task.sleep(for: .milliseconds(pause))
+        }
+        if Task.isCancelled { return }
+        withAnimation(.easeOut(duration: 0.4)) {
+            revealDay = .max
+            isReplaying = false
+        }
+
+        // Then go to the moment that matters.
+        try? await Task.sleep(for: .milliseconds(900))
+        if Task.isCancelled { return }
+        if selection == Self.overviewID, let closest = model.comparison?.closest {
+            withAnimation(.snappy) { selection = closest.id }
+        }
+    }
+
+    private func focus(animated: Bool) {
+        guard let scene else { return }
+        let region: MKCoordinateRegion
+        if let miss = cards.first(where: { $0.id == selection }), let tight = MapScene.region(for: miss) {
+            region = tight
+        } else {
+            region = scene.region
+        }
+        if animated, !reduceMotion {
+            withAnimation(.easeInOut(duration: 1.4)) { camera = .region(region) }
+        } else {
+            camera = .region(region)
         }
     }
 }
 
-/// One near miss within the tolerance.
+// MARK: - Cards
+
+/// The first card: the answer in one line.
+struct OverviewCard: View {
+    let comparison: Comparison?
+    let partner: String
+    let isReplaying: Bool
+    var tune: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            if isReplaying {
+                Text("PINTANDO EL MAPA")
+                    .font(Theme.label)
+                    .kerning(1.4)
+                    .foregroundStyle(Theme.muted)
+                Text("Por dónde anduvo cada quien…")
+                    .font(Theme.title(26))
+                    .foregroundStyle(Theme.text)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 0)
+                HStack(spacing: 14) {
+                    HStack(spacing: 7) { GlowDot(color: Theme.coral); Text("Tú") }
+                    HStack(spacing: 7) { GlowDot(color: Theme.teal); Text(partner.capitalizedFirst) }
+                }
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(Theme.muted)
+            } else if let comparison {
+                let count = comparison.matches.count
+                if count > 0 {
+                    Text("CASI SE CONOCEN")
+                        .font(Theme.label)
+                        .kerning(1.4)
+                        .foregroundStyle(Theme.muted)
+                    Text(count == 1 ? "1 vez" : "\(count) veces")
+                        .font(Theme.title(52))
+                        .foregroundStyle(Theme.coral)
+                        .contentTransition(.numericText())
+                        .animation(.snappy, value: count)
+                    Spacer(minLength: 0)
+                    footer(hint: "Desliza para verlas")
+                } else if let closest = comparison.closest {
+                    Text("NUNCA SE CRUZARON")
+                        .font(Theme.label)
+                        .kerning(1.4)
+                        .foregroundStyle(Theme.muted)
+                    Text(closest.meters <= 10_000 && closest.dayGap <= 30
+                        ? "Pero una vez estuvieron cerca."
+                        : "Esto es lo más cerca que llegaron.")
+                        .font(Theme.title(26))
+                        .foregroundStyle(Theme.text)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 0)
+                    footer(hint: "Desliza para verlo")
+                } else {
+                    Text("SIN DATOS")
+                        .font(Theme.label)
+                        .kerning(1.4)
+                        .foregroundStyle(Theme.muted)
+                    Text("No hay con qué comparar.")
+                        .font(Theme.title(26))
+                        .foregroundStyle(Theme.text)
+                    Text("Alguno de los dos rastros no tiene lugares en ese periodo. Prueba quitando la fecha en que se conocieron.")
+                        .font(.footnote)
+                        .foregroundStyle(Theme.muted)
+                    Spacer(minLength: 0)
+                }
+            } else {
+                ProgressView("Comparando…")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+    }
+
+    private func footer(hint: String) -> some View {
+        HStack {
+            Button(action: tune) {
+                Label("Ajustar", systemImage: "slider.horizontal.3")
+            }
+            .buttonStyle(SecondaryButtonStyle())
+            Spacer()
+            Label(hint, systemImage: "arrow.right")
+                .labelStyle(TrailingIconLabelStyle())
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(Theme.muted)
+        }
+    }
+}
+
+/// One near miss: when, how far, and who was where.
 struct MissCard: View {
     let miss: NearMiss
     let partner: String
-    let isClosest: Bool
+    let label: String
 
     var body: some View {
-        Card {
-            VStack(alignment: .leading, spacing: 12) {
-                if isClosest {
-                    Text("LA MÁS CERCANA")
-                        .font(.caption2.weight(.bold))
-                        .kerning(0.8)
-                        .foregroundStyle(Theme.coral)
-                }
-                Text(Phrase.date(miss.mine.day).capitalizedFirst)
-                    .font(.system(.title3, design: .serif).weight(.bold))
-                    .foregroundStyle(Theme.ink)
+        VStack(alignment: .leading, spacing: 5) {
+            Text(label)
+                .font(Theme.label)
+                .kerning(1.2)
+                .foregroundStyle(Theme.coral)
 
-                GapLine(meters: miss.meters)
+            Text(Phrase.date(miss.mine.day).capitalizedFirst)
+                .font(Theme.title(24))
+                .foregroundStyle(Theme.text)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
 
-                Text(sentence)
-                    .font(.subheadline)
-                    .foregroundStyle(Theme.muted)
-
-                MapsLink(miss: miss)
-            }
-        }
-    }
-
-    private var sentence: String {
-        let distance = miss.meters < 150
-            ? "Estuvieron a \(Phrase.distance(miss.meters))"
-            : "Estuvieron a unos \(Phrase.distance(miss.meters))"
-        if miss.dayGap == 0 { return "\(distance), el mismo día." }
-        return "\(distance). Tú, el \(Phrase.shortDate(miss.mine.day)); \(partner), el \(Phrase.shortDate(miss.theirs.day))."
-    }
-}
-
-/// Shown when nothing is within the tolerance: the closest the two ever were.
-struct ClosestCard: View {
-    let miss: NearMiss
-    let partner: String
-
-    var body: some View {
-        Card {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("LO MÁS CERCA QUE ESTUVIERON")
-                    .font(.caption2.weight(.bold))
-                    .kerning(0.8)
-                    .foregroundStyle(Theme.coral)
-
-                Text(summary)
-                    .font(.system(.title2, design: .serif).weight(.bold))
-                    .foregroundStyle(Theme.ink)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                GapLine(meters: miss.meters)
-
-                Text("Tú, el \(Phrase.shortDate(miss.mine.day)); \(partner), el \(Phrase.shortDate(miss.theirs.day)).\(hint)")
-                    .font(.subheadline)
-                    .foregroundStyle(Theme.muted)
-
-                MapsLink(miss: miss)
-            }
-        }
-    }
-
-    /// Only offered when the sliders can actually reach this one.
-    private var hint: String {
-        let reachable = miss.meters <= (ResultsView.distances.last ?? 0) && miss.dayGap <= 7
-        return reachable ? " Sube la distancia o los días de arriba y cuenta como “casi”." : ""
-    }
-
-    private var summary: String {
-        let distance = Phrase.distance(miss.meters)
-        let when = Phrase.monthAndYear(miss.mine.day)
-        if miss.dayGap == 0 { return "\(distance.capitalizedFirst), el mismo día, en \(when)." }
-        return "\(distance.capitalizedFirst) y \(Phrase.gap(miss.dayGap)), en \(when)."
-    }
-}
-
-/// Two dots and the gap between them. The gap grows with the distance, on a log scale.
-struct GapLine: View {
-    let meters: Double
-
-    var body: some View {
-        GeometryReader { proxy in
-            let fraction = min(1, max(0.12, log10(max(meters, 30) / 30) / log10(10_000 / 30)))
-            let gap = (proxy.size.width - 150) * fraction
-            HStack(spacing: 0) {
-                Circle().fill(Theme.coral).frame(width: 18, height: 18)
-                Rectangle().fill(Theme.line).frame(width: gap, height: 2)
-                Circle().fill(Theme.teal).frame(width: 18, height: 18)
-                Text(Phrase.distance(meters))
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(Theme.muted)
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(miss.meters < 150 ? "< 150 m" : Phrase.distance(miss.meters))
+                    .font(.system(size: 30, weight: .bold, design: .rounded))
+                    .foregroundStyle(Theme.text)
+                    .lineLimit(1)
                     .fixedSize()
-                    .padding(.leading, 10)
+                Text(miss.dayGap == 0 ? "el mismo día" : "y \(Phrase.gap(miss.dayGap))")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(Theme.muted)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
             }
-            .frame(maxHeight: .infinity, alignment: .center)
+
+            Text(detail)
+                .font(.footnote)
+                .foregroundStyle(Theme.muted)
+                .lineLimit(2)
+
+            Spacer(minLength: 0)
+
+            if let url = mapsURL {
+                Link(destination: url) {
+                    Label("Abrir en Mapas", systemImage: "map")
+                        .font(.footnote.weight(.semibold))
+                }
+                .tint(Theme.teal)
+            }
         }
-        .frame(height: 24)
-        .accessibilityHidden(true)
+    }
+
+    private var detail: String {
+        if miss.dayGap == 0 {
+            return "Tú y \(partner), a unas calles de distancia sin saberlo."
+        }
+        return "Tú, el \(Phrase.shortDate(miss.mine.day)); \(partner), el \(Phrase.shortDate(miss.theirs.day))."
+    }
+
+    /// Opens Apple Maps at the midpoint. It leaves the app only when tapped.
+    private var mapsURL: URL? {
+        guard let a = MapScene.coordinate(of: miss.mine.cell),
+              let b = MapScene.coordinate(of: miss.theirs.cell)
+        else { return nil }
+        let middle = MapScene.midpoint(a, b)
+        return URL(string: String(format: "https://maps.apple.com/?ll=%.4f,%.4f&z=15", middle.latitude, middle.longitude))
     }
 }
 
-/// Opens Apple Maps at the midpoint. This is the only thing that leaves the app,
-/// and only when the person taps it.
-struct MapsLink: View {
-    let miss: NearMiss
+/// Distance, days and the date the two met.
+struct TuningSheet: View {
+    @Environment(AppModel.self) private var model
 
     var body: some View {
-        if let url {
-            Link(destination: url) {
-                Label("Abrir en Mapas", systemImage: "map")
-                    .font(.subheadline.weight(.semibold))
-            }
-            .tint(Theme.teal)
-        }
-    }
+        @Bindable var model = model
+        let index = ResultsView.distances.firstIndex(of: model.tolerance.meters) ?? 2
 
-    private var url: URL? {
-        guard let a = Geohash.center(of: miss.mine.cell),
-              let b = Geohash.center(of: miss.theirs.cell)
-        else { return nil }
-        let latitude = (a.latitude + b.latitude) / 2
-        let longitude = (a.longitude + b.longitude) / 2
-        return URL(string: String(format: "https://maps.apple.com/?ll=%.4f,%.4f&z=15", latitude, longitude))
+        VStack(alignment: .leading, spacing: 18) {
+            Text("¿Qué cuenta como “casi”?")
+                .font(Theme.title(24))
+                .foregroundStyle(Theme.text)
+                .padding(.top, 8)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("A menos de \(Phrase.distance(model.tolerance.meters))")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(Theme.text)
+                Slider(
+                    value: Binding(
+                        get: { Double(index) },
+                        set: { model.tolerance.meters = ResultsView.distances[Int($0.rounded())] }
+                    ),
+                    in: 0...Double(ResultsView.distances.count - 1),
+                    step: 1
+                )
+                .accessibilityLabel("Distancia máxima")
+                .accessibilityValue(Phrase.distance(model.tolerance.meters))
+            }
+
+            Stepper(value: $model.tolerance.days, in: 0...7) {
+                Text(Phrase.tolerance(days: model.tolerance.days))
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(Theme.text)
+            }
+
+            Divider().overlay(Theme.line)
+
+            Toggle(isOn: $model.onlyBeforeMeeting) {
+                Text("Solo antes de conocernos")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(Theme.text)
+            }
+            .tint(Theme.coral)
+
+            if model.onlyBeforeMeeting {
+                DatePicker(
+                    "Nos conocimos el",
+                    selection: $model.metDate,
+                    in: ...Date(),
+                    displayedComponents: .date
+                )
+                .font(.subheadline)
+                .foregroundStyle(Theme.text)
+                .environment(\.locale, Phrase.locale)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 24)
+        .padding(.top, 20)
     }
 }
 
-extension String {
-    var capitalizedFirst: String {
-        prefix(1).uppercased() + dropFirst()
+// MARK: - Small pieces
+
+/// Where one of the two stood, in the selected near miss.
+struct EndpointDot: View {
+    let color: Color
+
+    var body: some View {
+        Circle()
+            .fill(color)
+            .frame(width: 16, height: 16)
+            .overlay(Circle().strokeBorder(.white, lineWidth: 2.5))
+            .shadow(color: color, radius: 10)
+    }
+}
+
+/// A near miss that is not selected: a ring that breathes.
+struct PulseMarker: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var pulsing = false
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .strokeBorder(.white.opacity(0.7), lineWidth: 1.5)
+                .frame(width: 30, height: 30)
+                .scaleEffect(pulsing ? 1.5 : 0.7)
+                .opacity(pulsing ? 0 : 0.9)
+            Circle()
+                .fill(.white)
+                .frame(width: 10, height: 10)
+                .shadow(color: .white, radius: 6)
+        }
+        .frame(width: 44, height: 44)
+        .contentShape(Circle())
+        .onAppear {
+            guard !reduceMotion else { return }
+            withAnimation(.easeOut(duration: 1.6).repeatForever(autoreverses: false)) {
+                pulsing = true
+            }
+        }
+    }
+}
+
+struct TrailingIconLabelStyle: LabelStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(spacing: 5) {
+            configuration.title
+            configuration.icon
+        }
+    }
+}
+
+private extension View {
+    /// A card in the carousel: glass over the map, almost as wide as the screen.
+    func cardFrame() -> some View {
+        self
+            .padding(18)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+            .background(Theme.surface.opacity(0.72), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    .strokeBorder(Color.white.opacity(0.12))
+            )
+            .containerRelativeFrame(.horizontal) { length, _ in length - 28 }
+    }
+
+    func pill() -> some View {
+        self
+            .padding(.horizontal, 16)
+            .frame(height: 34)
+            .fixedSize()
+            .background(.ultraThinMaterial, in: Capsule())
+            .background(Theme.surface.opacity(0.6), in: Capsule())
+            .overlay(Capsule().strokeBorder(Color.white.opacity(0.12)))
     }
 }

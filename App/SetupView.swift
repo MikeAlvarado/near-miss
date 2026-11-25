@@ -19,18 +19,23 @@ struct SetupView: View {
 
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                Text("Tres pasos")
-                    .font(Theme.title(34))
-                    .foregroundStyle(Theme.ink)
-                    .padding(.bottom, 4)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Tres pasos")
+                        .font(Theme.title(38))
+                        .foregroundStyle(Theme.text)
+                    Text("Cada quien lee sus fotos en su teléfono y se mandan el rastro.")
+                        .font(.subheadline)
+                        .foregroundStyle(Theme.muted)
+                }
+                .padding(.bottom, 8)
 
                 if model.demo != nil { demoBanner }
 
-                step(number: 1, title: "Tu rastro", color: Theme.coral) { myTrailStep }
-                step(number: 2, title: "Mándaselo a tu pareja", color: Theme.ink) { shareStep }
-                step(number: 3, title: "El rastro de tu pareja", color: Theme.teal) { partnerStep }
+                step(number: 1, title: "Tu rastro", color: Theme.coral, done: model.myTrail != nil) { myTrailStep }
+                step(number: 2, title: "Mándaselo a tu pareja", color: Theme.text, done: false) { shareStep }
+                step(number: 3, title: "El rastro de tu pareja", color: Theme.teal, done: model.partnerTrail != nil) { partnerStep }
 
-                Button("Ver resultado", action: showResults)
+                Button("Pintar el mapa", action: showResults)
                     .buttonStyle(PrimaryButtonStyle())
                     .disabled(!model.canCompare)
                     .padding(.top, 6)
@@ -40,9 +45,12 @@ struct SetupView: View {
             .padding(.horizontal, 20)
             .padding(.bottom, 28)
         }
-        .background(Theme.paper.ignoresSafeArea())
+        .background(Theme.bg.ignoresSafeArea())
         .navigationBarTitleDisplayMode(.inline)
-        .sheet(isPresented: $showingExport) { ExportSheet() }
+        .toolbarBackground(Theme.bg, for: .navigationBar)
+        .sheet(isPresented: $showingExport) {
+            ExportSheet().presentationBackground(Theme.bg)
+        }
         .fileImporter(isPresented: $showingImporter, allowedContentTypes: [.trail, .json]) { result in
             if case .success(let url) = result { model.importPartner(from: url) }
         }
@@ -54,7 +62,7 @@ struct SetupView: View {
     private var myTrailStep: some View {
         if let trail = model.myTrail {
             Text(summary(of: trail))
-                .foregroundStyle(Theme.ink)
+                .foregroundStyle(Theme.text)
             if case .done(let total, let located) = model.scanState {
                 Text("De \(Phrase.count(total, "foto o video", "fotos y videos")), \(located.formatted()) tienen ubicación.")
                     .font(.footnote)
@@ -102,7 +110,7 @@ struct SetupView: View {
     private var partnerStep: some View {
         if let trail = model.partnerTrail {
             Text((trail.name.isEmpty ? "" : "\(trail.name): ") + summary(of: trail))
-                .foregroundStyle(Theme.ink)
+                .foregroundStyle(Theme.text)
         } else {
             Text("Cuando te llegue su archivo, ábrelo con Casi o impórtalo aquí.")
                 .foregroundStyle(Theme.muted)
@@ -129,10 +137,12 @@ struct SetupView: View {
             Spacer()
             Button("Salir") { model.leaveDemo() }
                 .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Theme.coral)
         }
-        .foregroundStyle(Theme.ink)
+        .foregroundStyle(Theme.text)
         .padding(14)
-        .background(Theme.coral.opacity(0.14), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .background(Theme.coral.opacity(0.16), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(Theme.coral.opacity(0.35)))
     }
 
     private var demoMenu: some View {
@@ -153,19 +163,33 @@ struct SetupView: View {
         number: Int,
         title: String,
         color: Color,
+        done: Bool,
         @ViewBuilder content: () -> Content
     ) -> some View {
         Card {
             VStack(alignment: .leading, spacing: 12) {
-                HStack(spacing: 10) {
-                    Text("\(number)")
-                        .font(.subheadline.weight(.bold))
-                        .foregroundStyle(.white)
-                        .frame(width: 26, height: 26)
-                        .background(color, in: Circle())
+                HStack(spacing: 12) {
+                    ZStack {
+                        Circle()
+                            .fill(done ? color : color.opacity(0.14))
+                        Circle()
+                            .strokeBorder(color.opacity(done ? 0 : 0.7), lineWidth: 1.5)
+                        if done {
+                            Image(systemName: "checkmark")
+                                .font(.caption.weight(.heavy))
+                                .foregroundStyle(Theme.bg)
+                        } else {
+                            Text("\(number)")
+                                .font(.subheadline.weight(.bold))
+                                .foregroundStyle(color)
+                        }
+                    }
+                    .frame(width: 30, height: 30)
+                    .shadow(color: done ? color.opacity(0.6) : .clear, radius: 8)
+
                     Text(title)
-                        .font(.headline)
-                        .foregroundStyle(Theme.ink)
+                        .font(.system(.title3, design: .serif).weight(.bold))
+                        .foregroundStyle(Theme.text)
                 }
                 content()
             }
@@ -196,7 +220,7 @@ struct ExportSheet: View {
                 VStack(alignment: .leading, spacing: 18) {
                     Text("Esto es lo que recibe tu pareja")
                         .font(Theme.title(28))
-                        .foregroundStyle(Theme.ink)
+                        .foregroundStyle(Theme.text)
 
                     Card {
                         VStack(alignment: .leading, spacing: 14) {
@@ -215,8 +239,9 @@ struct ExportSheet: View {
                     if model.demo == nil {
                         TextField("Tu nombre (opcional)", text: $model.myName)
                             .textInputAutocapitalization(.words)
+                            .foregroundStyle(Theme.text)
                             .padding(14)
-                            .background(Theme.card, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            .background(Theme.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                             .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Theme.line))
                             .onChange(of: model.myName) { fileURL = model.exportFile() }
                     }
@@ -230,7 +255,7 @@ struct ExportSheet: View {
                 }
                 .padding(20)
             }
-            .background(Theme.paper.ignoresSafeArea())
+            .background(Theme.bg.ignoresSafeArea())
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cerrar") { dismiss() }
@@ -247,7 +272,7 @@ struct ExportSheet: View {
                 .foregroundStyle(Theme.coral)
                 .frame(width: 30)
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.subheadline.weight(.semibold)).foregroundStyle(Theme.ink)
+                Text(title).font(.subheadline.weight(.semibold)).foregroundStyle(Theme.text)
                 Text(detail).font(.footnote).foregroundStyle(Theme.muted)
             }
         }

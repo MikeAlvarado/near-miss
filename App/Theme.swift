@@ -1,18 +1,22 @@
 import NearMissCore
 import SwiftUI
 
+/// Night map: dark ground, two trails that glow.
 enum Theme {
-    static let paper = Color(red: 0.98, green: 0.96, blue: 0.92)
-    static let card = Color.white
-    static let ink = Color(red: 0.11, green: 0.10, blue: 0.16)
-    static let muted = Color(red: 0.42, green: 0.40, blue: 0.46)
-    static let coral = Color(red: 0.93, green: 0.33, blue: 0.27)
-    static let teal = Color(red: 0.16, green: 0.49, blue: 0.52)
-    static let line = Color(red: 0.11, green: 0.10, blue: 0.16).opacity(0.10)
+    static let bg = Color(red: 0.047, green: 0.043, blue: 0.075)
+    static let surface = Color(red: 0.094, green: 0.086, blue: 0.137)
+    static let raised = Color(red: 0.141, green: 0.129, blue: 0.2)
+    static let text = Color(red: 0.965, green: 0.945, blue: 0.906)
+    static let muted = Color(red: 0.63, green: 0.61, blue: 0.71)
+    static let coral = Color(red: 1.0, green: 0.42, blue: 0.36)
+    static let teal = Color(red: 0.21, green: 0.82, blue: 0.75)
+    static let line = Color.white.opacity(0.09)
 
     static func title(_ size: CGFloat) -> Font {
         .system(size: size, weight: .bold, design: .serif)
     }
+
+    static let label = Font.caption2.weight(.bold)
 }
 
 struct Card<Content: View>: View {
@@ -22,9 +26,9 @@ struct Card<Content: View>: View {
         content
             .padding(18)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Theme.card, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .background(Theme.surface, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
                     .strokeBorder(Theme.line)
             )
     }
@@ -36,13 +40,14 @@ struct PrimaryButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.headline)
-            .foregroundStyle(.white)
-            .frame(maxWidth: .infinity, minHeight: 54)
+            .foregroundStyle(isEnabled ? Theme.bg : Theme.muted.opacity(0.7))
+            .frame(maxWidth: .infinity, minHeight: 56)
             .background(
-                isEnabled ? Theme.ink : Theme.ink.opacity(0.25),
-                in: RoundedRectangle(cornerRadius: 16, style: .continuous)
+                isEnabled ? AnyShapeStyle(Theme.coral) : AnyShapeStyle(Color.white.opacity(0.07)),
+                in: RoundedRectangle(cornerRadius: 18, style: .continuous)
             )
-            .scaleEffect(configuration.isPressed ? 0.98 : 1)
+            .shadow(color: isEnabled ? Theme.coral.opacity(0.35) : .clear, radius: 18, y: 6)
+            .scaleEffect(configuration.isPressed ? 0.97 : 1)
             .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
     }
 }
@@ -53,10 +58,24 @@ struct SecondaryButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.subheadline.weight(.semibold))
-            .foregroundStyle(isEnabled ? Theme.ink : Theme.muted.opacity(0.6))
+            .foregroundStyle(isEnabled ? Theme.text : Theme.muted.opacity(0.5))
             .padding(.horizontal, 16)
             .frame(minHeight: 44)
-            .background(Theme.ink.opacity(configuration.isPressed ? 0.12 : 0.06), in: Capsule())
+            .background(Color.white.opacity(configuration.isPressed ? 0.16 : 0.09), in: Capsule())
+            .overlay(Capsule().strokeBorder(Theme.line))
+    }
+}
+
+/// A point of light on the map or in a legend.
+struct GlowDot: View {
+    let color: Color
+    var size: CGFloat = 8
+
+    var body: some View {
+        Circle()
+            .fill(color)
+            .frame(width: size, height: size)
+            .shadow(color: color.opacity(0.9), radius: size * 0.7)
     }
 }
 
@@ -120,5 +139,11 @@ enum Phrase {
         formatter.timeZone = TimeZone(identifier: "UTC")
         formatter.dateFormat = pattern
         return formatter.string(from: SolarDay.date(for: day))
+    }
+}
+
+extension String {
+    var capitalizedFirst: String {
+        prefix(1).uppercased() + dropFirst()
     }
 }

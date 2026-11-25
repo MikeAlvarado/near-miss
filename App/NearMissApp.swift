@@ -8,7 +8,7 @@ struct NearMissApp: App {
         WindowGroup {
             RootView()
                 .environment(model)
-                .preferredColorScheme(.light)
+                .preferredColorScheme(.dark)
                 .tint(Theme.coral)
         }
     }

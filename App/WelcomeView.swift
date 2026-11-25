@@ -4,82 +4,177 @@ struct WelcomeView: View {
     var start: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Spacer(minLength: 24)
+        ZStack(alignment: .bottom) {
+            Theme.bg.ignoresSafeArea()
 
-            PassingDots()
-                .frame(height: 150)
-                .padding(.bottom, 36)
+            HeroCanvas()
+                .ignoresSafeArea()
+                .frame(maxHeight: .infinity, alignment: .top)
+                .mask(
+                    LinearGradient(
+                        stops: [
+                            .init(color: .black, location: 0),
+                            .init(color: .black, location: 0.42),
+                            .init(color: .clear, location: 0.6),
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .ignoresSafeArea()
+                )
 
-            Text("¿Casi se\nconocen?")
-                .font(Theme.title(52))
-                .foregroundStyle(Theme.ink)
-                .lineSpacing(-4)
+            VStack(alignment: .leading, spacing: 0) {
+                Text("ANTES DE CONOCERSE")
+                    .font(Theme.label)
+                    .kerning(1.6)
+                    .foregroundStyle(Theme.coral)
+                    .padding(.bottom, 12)
 
-            Text("Antes de conocerse, quizá ya estuvieron en el mismo lugar el mismo día. Tus fotos y las de tu pareja lo saben.")
-                .font(.title3)
-                .foregroundStyle(Theme.muted)
-                .padding(.top, 16)
+                Text("¿Casi se\nconocen?")
+                    .font(Theme.title(54))
+                    .foregroundStyle(Theme.text)
 
-            Spacer(minLength: 24)
+                Text("Quizá ya estuvieron en la misma calle el mismo día. Tus fotos y las de tu pareja lo saben; esta app lo pinta en el mapa.")
+                    .font(.body)
+                    .foregroundStyle(Theme.muted)
+                    .padding(.top, 14)
+                    .padding(.bottom, 28)
 
-            Button("Empezar", action: start)
-                .buttonStyle(PrimaryButtonStyle())
+                Button("Empezar", action: start)
+                    .buttonStyle(PrimaryButtonStyle())
 
-            Label("Todo pasa en tu iPhone. Sin cuentas, sin servidor.", systemImage: "lock.fill")
-                .font(.footnote)
-                .foregroundStyle(Theme.muted)
-                .frame(maxWidth: .infinity)
-                .padding(.top, 14)
+                Label("Tus fotos no salen de tu iPhone.", systemImage: "lock.fill")
+                    .font(.footnote)
+                    .foregroundStyle(Theme.muted)
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 14)
+            }
+            .padding(.horizontal, 28)
+            .padding(.bottom, 16)
         }
-        .padding(.horizontal, 28)
-        .padding(.bottom, 20)
-        .background(Theme.paper.ignoresSafeArea())
     }
 }
 
-/// Two dots that walk past each other and never touch.
-struct PassingDots: View {
+/// Two trails of light cross a dark map and pass a few steps from each other.
+struct HeroCanvas: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var passed = false
+
+    private let cycle = 8.0
 
     var body: some View {
-        GeometryReader { proxy in
-            let width = proxy.size.width
-            let middle = proxy.size.height / 2
-            let travel = width - 56
-
-            ZStack(alignment: .topLeading) {
-                trail(y: middle - 22, color: Theme.coral)
-                trail(y: middle + 22, color: Theme.teal)
-
-                Circle()
-                    .fill(Theme.coral)
-                    .frame(width: 40, height: 40)
-                    .offset(x: 8 + (passed ? travel : 0), y: middle - 42)
-
-                Circle()
-                    .fill(Theme.teal)
-                    .frame(width: 40, height: 40)
-                    .offset(x: 8 + (passed ? 0 : travel), y: middle + 2)
-            }
-        }
-        .onAppear {
-            guard !reduceMotion else { return }
-            withAnimation(.easeInOut(duration: 5).repeatForever(autoreverses: true)) {
-                passed = true
+        TimelineView(.animation(paused: reduceMotion)) { timeline in
+            Canvas { context, size in
+                let seconds = timeline.date.timeIntervalSinceReferenceDate
+                let t = reduceMotion ? 0.7 : seconds.truncatingRemainder(dividingBy: cycle) / cycle
+                draw(&context, size: size, t: t)
             }
         }
         .accessibilityHidden(true)
     }
 
-    private func trail(y: CGFloat, color: Color) -> some View {
-        GeometryReader { proxy in
-            Path { path in
-                path.move(to: CGPoint(x: 8, y: y))
-                path.addLine(to: CGPoint(x: proxy.size.width - 8, y: y))
+    private func draw(_ context: inout GraphicsContext, size: CGSize, t: Double) {
+        let w = size.width
+        let h = size.height * 0.5
+
+        // Street grid, like a city seen from far above.
+        var grid = Path()
+        let step: CGFloat = 26
+        var x: CGFloat = step / 2
+        while x < w {
+            var y: CGFloat = step / 2
+            while y < size.height {
+                grid.addEllipse(in: CGRect(x: x - 1, y: y - 1, width: 2, height: 2))
+                y += step
             }
-            .stroke(color.opacity(0.35), style: StrokeStyle(lineWidth: 2, lineCap: .round, dash: [2, 9]))
+            x += step
         }
+        context.fill(grid, with: .color(.white.opacity(0.07)))
+
+        // Coral comes from the lower left, teal from the upper right.
+        var coral = Path()
+        coral.move(to: CGPoint(x: -0.08 * w, y: 0.86 * h))
+        coral.addCurve(
+            to: CGPoint(x: 0.5 * w, y: 0.6 * h),
+            control1: CGPoint(x: 0.16 * w, y: 1.02 * h),
+            control2: CGPoint(x: 0.3 * w, y: 0.6 * h)
+        )
+        coral.addCurve(
+            to: CGPoint(x: 1.08 * w, y: 0.98 * h),
+            control1: CGPoint(x: 0.72 * w, y: 0.6 * h),
+            control2: CGPoint(x: 0.84 * w, y: 0.74 * h)
+        )
+
+        var teal = Path()
+        teal.move(to: CGPoint(x: 1.08 * w, y: 0.2 * h))
+        teal.addCurve(
+            to: CGPoint(x: 0.5 * w, y: 0.5 * h),
+            control1: CGPoint(x: 0.82 * w, y: 0.12 * h),
+            control2: CGPoint(x: 0.7 * w, y: 0.5 * h)
+        )
+        teal.addCurve(
+            to: CGPoint(x: -0.08 * w, y: 0.34 * h),
+            control1: CGPoint(x: 0.3 * w, y: 0.5 * h),
+            control2: CGPoint(x: 0.14 * w, y: 0.22 * h)
+        )
+
+        let drawn = ease(min(1, t / 0.6))
+        let fade = t > 0.9 ? max(0, 1 - (t - 0.9) / 0.1) : 1
+
+        stroke(&context, path: coral, progress: drawn, color: Theme.coral, fade: fade)
+        stroke(&context, path: teal, progress: drawn, color: Theme.teal, fade: fade)
+
+        // The near miss: rings where the two trails pass each other.
+        let meet = CGPoint(x: 0.5 * w, y: 0.55 * h)
+        let passed = (t - 0.33) / 0.5
+        if passed > 0, passed < 1 {
+            for offset in [0.0, 0.35] {
+                let ring = passed - offset
+                guard ring > 0, ring < 0.65 else { continue }
+                let life = ring / 0.65
+                let radius = 10 + 46 * life
+                let circle = Path(ellipseIn: CGRect(
+                    x: meet.x - radius, y: meet.y - radius, width: radius * 2, height: radius * 2
+                ))
+                context.stroke(circle, with: .color(.white.opacity(0.5 * (1 - life) * fade)), lineWidth: 1.5)
+            }
+        }
+    }
+
+    private func stroke(
+        _ context: inout GraphicsContext,
+        path: Path,
+        progress: Double,
+        color: Color,
+        fade: Double
+    ) {
+        guard progress > 0.001 else { return }
+        let trimmed = path.trimmedPath(from: 0, to: progress)
+        let style = StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round)
+
+        context.drawLayer { layer in
+            layer.addFilter(.blur(radius: 10))
+            layer.stroke(
+                trimmed,
+                with: .color(color.opacity(0.7 * fade)),
+                style: StrokeStyle(lineWidth: 9, lineCap: .round, lineJoin: .round)
+            )
+        }
+        context.stroke(trimmed, with: .color(color.opacity(fade)), style: style)
+
+        if let head = trimmed.currentPoint {
+            let dot = Path(ellipseIn: CGRect(x: head.x - 6, y: head.y - 6, width: 12, height: 12))
+            context.drawLayer { layer in
+                layer.addFilter(.blur(radius: 8))
+                layer.fill(
+                    Path(ellipseIn: CGRect(x: head.x - 11, y: head.y - 11, width: 22, height: 22)),
+                    with: .color(color.opacity(0.8 * fade))
+                )
+            }
+            context.fill(dot, with: .color(.white.opacity(fade)))
+        }
+    }
+
+    private func ease(_ x: Double) -> Double {
+        x * x * (3 - 2 * x)
     }
 }

@@ -134,6 +134,11 @@ final class AppModel {
 
     // MARK: - Comparison
 
+    /// The day the two met, when only earlier days should count.
+    var beforeDay: Int? {
+        onlyBeforeMeeting ? Self.dayNumber(of: metDate) : nil
+    }
+
     func recompute() {
         compareTask?.cancel()
         guard let mine = myTrail?.sightings, let theirs = partnerTrail?.sightings else {
@@ -141,7 +146,7 @@ final class AppModel {
             return
         }
         let tolerance = tolerance
-        let beforeDay = onlyBeforeMeeting ? Self.dayNumber(of: metDate) : nil
+        let beforeDay = beforeDay
         compareTask = Task {
             let result = await Task.detached(priority: .userInitiated) {
                 Matcher.compare(mine: mine, theirs: theirs, tolerance: tolerance, beforeDay: beforeDay)
