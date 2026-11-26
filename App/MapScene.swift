@@ -1,5 +1,6 @@
 import MapKit
 import NearMissCore
+import SwiftUI
 
 /// One sighting placed on the map.
 struct TrailPoint: Identifiable {
@@ -65,16 +66,50 @@ struct MapScene {
         )
     }
 
-    /// The frame for one near miss: tight when they were close, wide when they were not.
-    static func region(for miss: NearMiss) -> MKCoordinateRegion? {
-        guard let a = coordinate(of: miss.mine.cell), let b = coordinate(of: miss.theirs.cell) else {
+    /// Where each of the two stood. A cell is about 150 m wide, so two people in the
+    /// same cell land on the same point; they are drawn a few steps apart instead,
+    /// which is as true as the cell allows.
+    static func endpoints(of miss: NearMiss) -> (mine: CLLocationCoordinate2D, theirs: CLLocationCoordinate2D)? {
+        guard var a = coordinate(of: miss.mine.cell), var b = coordinate(of: miss.theirs.cell) else {
             return nil
         }
-        let span = max(miss.meters * 3.2, 1400)
-        if span > 1_500_000 {
-            return region(fitting: [a, b], padding: 1.8)
+        if miss.meters < 30 {
+            let metersPerDegree = 111_320 * max(0.2, cos(a.latitude * .pi / 180))
+            let shift = 24 / metersPerDegree
+            a.longitude -= shift
+            b.longitude += shift
         }
-        return MKCoordinateRegion(center: midpoint(a, b), latitudinalMeters: span, longitudinalMeters: span)
+        return (a, b)
+    }
+
+    /// The camera for one near miss. When they were close it comes down to the street,
+    /// tilted, and turned so the two stand side by side. When they were far it frames both.
+    static func camera(for miss: NearMiss) -> MapCameraPosition? {
+        guard let (a, b) = endpoints(of: miss) else { return nil }
+        if miss.meters > 4000 {
+            let span = miss.meters * 3.2
+            if span > 1_500_000 {
+                return .region(region(fitting: [a, b], padding: 1.8))
+            }
+            return .region(MKCoordinateRegion(center: midpoint(a, b), latitudinalMeters: span, longitudinalMeters: span))
+        }
+        let close = miss.meters <= 1200
+        return .camera(MapCamera(
+            centerCoordinate: midpoint(a, b),
+            distance: max(miss.meters * 6.2, 620),
+            heading: bearing(from: a, to: b) - 90,
+            pitch: close ? 48 : 30
+        ))
+    }
+
+    /// Compass direction from one point to another, in degrees.
+    static func bearing(from a: CLLocationCoordinate2D, to b: CLLocationCoordinate2D) -> Double {
+        let lat1 = a.latitude * .pi / 180, lat2 = b.latitude * .pi / 180
+        let dLon = (b.longitude - a.longitude) * .pi / 180
+        let y = sin(dLon) * cos(lat2)
+        let x = cos(lat1) * sin(lat2) - sin(lat1) * cos(lat2) * cos(dLon)
+        let degrees = atan2(y, x) * 180 / .pi
+        return (degrees + 360).truncatingRemainder(dividingBy: 360)
     }
 
     private static func points(_ trail: Trail, beforeDay: Int?) -> [TrailPoint] {

@@ -24,7 +24,7 @@ struct ResultsView: View {
         Map(position: $camera, interactionModes: [.pan, .zoom]) {
             mapContent
         }
-        .mapStyle(.standard(elevation: .flat, emphasis: .muted, pointsOfInterest: .excludingAll))
+        .mapStyle(.standard(elevation: .realistic, emphasis: .muted, pointsOfInterest: .excludingAll))
         .mapControlVisibility(.hidden)
         .safeAreaInset(edge: .bottom, spacing: 0) { carousel }
         .overlay(alignment: .top) { topPill.padding(.top, 8) }
@@ -106,16 +106,28 @@ struct ResultsView: View {
 
     @MapContentBuilder
     private func missMarker(_ miss: NearMiss) -> some MapContent {
-        if let a = MapScene.coordinate(of: miss.mine.cell), let b = MapScene.coordinate(of: miss.theirs.cell) {
+        if let (a, b) = MapScene.endpoints(of: miss) {
             let isSelected = selection == miss.id
             let middle = MapScene.midpoint(a, b)
 
             if isSelected {
-                MapCircle(center: middle, radius: max(miss.meters / 2 + 90, 160))
+                MapCircle(center: middle, radius: max(miss.meters / 2 + 45, 75))
                     .foregroundStyle(.white.opacity(0.07))
                     .stroke(.white.opacity(0.45), lineWidth: 1)
                 MapPolyline(coordinates: [a, b])
-                    .stroke(.white, style: StrokeStyle(lineWidth: 2, lineCap: .round, dash: [3, 6]))
+                    .stroke(.white, style: StrokeStyle(lineWidth: 2.5, lineCap: .round, dash: [3, 7]))
+                if miss.meters >= 150 {
+                    Annotation("", coordinate: middle, anchor: .center) {
+                        Text(Phrase.distance(miss.meters))
+                            .font(.caption.weight(.bold))
+                            .monospacedDigit()
+                            .foregroundStyle(Theme.bg)
+                            .padding(.horizontal, 9)
+                            .frame(height: 22)
+                            .background(.white, in: Capsule())
+                            .shadow(color: .black.opacity(0.4), radius: 6, y: 2)
+                    }
+                }
                 Annotation("Tú", coordinate: a, anchor: .center) {
                     EndpointDot(color: Theme.coral)
                 }
@@ -279,16 +291,16 @@ struct ResultsView: View {
 
     private func focus(animated: Bool) {
         guard let scene else { return }
-        let region: MKCoordinateRegion
-        if let miss = cards.first(where: { $0.id == selection }), let tight = MapScene.region(for: miss) {
-            region = tight
+        let target: MapCameraPosition
+        if let miss = cards.first(where: { $0.id == selection }), let street = MapScene.camera(for: miss) {
+            target = street
         } else {
-            region = scene.region
+            target = .region(scene.region)
         }
         if animated, !reduceMotion {
-            withAnimation(.easeInOut(duration: 1.4)) { camera = .region(region) }
+            withAnimation(.easeInOut(duration: 1.8)) { camera = target }
         } else {
-            camera = .region(region)
+            camera = target
         }
     }
 }
@@ -433,18 +445,23 @@ struct MissCard: View {
 
     private var detail: String {
         if miss.dayGap == 0 {
-            return "Tú y \(partner), a unas calles de distancia sin saberlo."
+            if miss.meters < 150 {
+                return "Tú y \(partner) en la misma cuadra, sin saberlo."
+            }
+            if miss.meters <= 1500 {
+                let minutes = max(1, Int((miss.meters / 80).rounded()))
+                return "Tú y \(partner), a unos \(minutes) min a pie, sin saberlo."
+            }
+            return "Tú y \(partner) en la misma zona, sin saberlo."
         }
         return "Tú, el \(Phrase.shortDate(miss.mine.day)); \(partner), el \(Phrase.shortDate(miss.theirs.day))."
     }
 
     /// Opens Apple Maps at the midpoint. It leaves the app only when tapped.
     private var mapsURL: URL? {
-        guard let a = MapScene.coordinate(of: miss.mine.cell),
-              let b = MapScene.coordinate(of: miss.theirs.cell)
-        else { return nil }
+        guard let (a, b) = MapScene.endpoints(of: miss) else { return nil }
         let middle = MapScene.midpoint(a, b)
-        return URL(string: String(format: "https://maps.apple.com/?ll=%.4f,%.4f&z=15", middle.latitude, middle.longitude))
+        return URL(string: String(format: "https://maps.apple.com/?ll=%.4f,%.4f&z=17", middle.latitude, middle.longitude))
     }
 }
 
