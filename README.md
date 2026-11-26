@@ -18,7 +18,7 @@ The screenshots show the demo mode. Ana, Beto and Carla do not exist.
 2. **Reduce.** Each photo becomes a [geohash](https://en.wikipedia.org/wiki/Geohash) cell of about 150 m and a day number. Duplicates collapse, so a day in one place is one entry. This list is your "trail" (*rastro*).
 3. **Exchange.** You export the trail as a small `.nearmiss` file and send it with AirDrop or Messages through the system share sheet. Your partner does the same. Opening the file in the app imports it.
 4. **Compare.** The app matches the two trails on your phone. The starting tolerance is 500 m on the same day; you can widen it up to 5 km and 7 days. You can also give the date you met, so only earlier days count.
-5. **Paint.** The result is a map. Both trails are drawn in the order they happened, then the camera flies to the place where you almost met. Swipe the cards to visit each near miss.
+5. **Paint.** The result is a map. Both trails are drawn in the order they happened, then the camera comes down to street level and the two of you walk the last steps to where you almost met. The walk is drawn for the eye: a trail knows the place and the day, not the route. Swipe the cards to visit each near miss.
 6. **Always a result.** Photos only cover the places where someone took one, so exact matches are rare. When there are none, the app shows the closest you ever were, for example "2 km and 3 days apart, March 2018".
 
 ## Privacy

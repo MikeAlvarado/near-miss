@@ -102,6 +102,60 @@ struct MapScene {
         ))
     }
 
+    /// The last steps of each of the two before the near miss, for the walking animation.
+    /// A trail only knows the cell and the day, not the route, so these paths are drawn
+    /// for the eye: each one comes in from its own side and stops where the photo was taken.
+    static func walkPaths(for miss: NearMiss) -> (mine: [CLLocationCoordinate2D], theirs: [CLLocationCoordinate2D])? {
+        guard let (a, b) = endpoints(of: miss) else { return nil }
+        let middle = midpoint(a, b)
+        let perLat = 111_320.0
+        let perLon = 111_320.0 * max(0.2, cos(middle.latitude * .pi / 180))
+        func local(_ c: CLLocationCoordinate2D) -> (x: Double, y: Double) {
+            ((c.longitude - middle.longitude) * perLon, (c.latitude - middle.latitude) * perLat)
+        }
+        func coordinate(_ x: Double, _ y: Double) -> CLLocationCoordinate2D {
+            CLLocationCoordinate2D(latitude: middle.latitude + y / perLat, longitude: middle.longitude + x / perLon)
+        }
+        let pa = local(a), pb = local(b)
+        let gap = max(1, hypot(pa.x - pb.x, pa.y - pb.y))
+        let ux = (pa.x - pb.x) / gap, uy = (pa.y - pb.y) / gap
+        let px = -uy, py = ux
+        let length = max(90, miss.meters * 0.55)
+
+        func path(to end: (x: Double, y: Double), side: Double) -> [CLLocationCoordinate2D] {
+            // Mostly across the line between the two, so the whole walk stays on screen.
+            let start = (x: end.x + side * (ux * length * 0.3 + px * length),
+                         y: end.y + side * (uy * length * 0.3 + py * length))
+            let control = (x: end.x + side * (-ux * length * 0.25 + px * length * 0.5),
+                           y: end.y + side * (-uy * length * 0.25 + py * length * 0.5))
+            return (0...48).map { step in
+                let t = Double(step) / 48, r = 1 - t
+                return coordinate(
+                    r * r * start.x + 2 * r * t * control.x + t * t * end.x,
+                    r * r * start.y + 2 * r * t * control.y + t * t * end.y
+                )
+            }
+        }
+        return (path(to: pa, side: 1), path(to: pb, side: -1))
+    }
+
+    /// The part of a path already walked at `progress` (0 to 1); its last point is the walker.
+    static func walked(_ path: [CLLocationCoordinate2D], progress: Double) -> [CLLocationCoordinate2D] {
+        guard path.count > 1 else { return path }
+        let position = min(1, max(0, progress)) * Double(path.count - 1)
+        let index = Int(position)
+        var result = Array(path[0...index])
+        if index < path.count - 1 {
+            let f = position - Double(index)
+            let p = path[index], q = path[index + 1]
+            result.append(CLLocationCoordinate2D(
+                latitude: p.latitude + (q.latitude - p.latitude) * f,
+                longitude: p.longitude + (q.longitude - p.longitude) * f
+            ))
+        }
+        return result
+    }
+
     /// Compass direction from one point to another, in degrees.
     static func bearing(from a: CLLocationCoordinate2D, to b: CLLocationCoordinate2D) -> Double {
         let lat1 = a.latitude * .pi / 180, lat2 = b.latitude * .pi / 180

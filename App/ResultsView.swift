@@ -16,6 +16,10 @@ struct ResultsView: View {
     @State private var camera: MapCameraPosition = .automatic
     @State private var showingTuning = false
     @State private var replayCount = 0
+    /// How far the two have walked toward the selected near miss, 0 to 1.
+    @State private var walk = 1.0
+    @State private var walkPaths: (mine: [CLLocationCoordinate2D], theirs: [CLLocationCoordinate2D])?
+    @State private var walkTask: Task<Void, Never>?
 
     static let overviewID = "overview"
     static let distances: [Double] = [100, 250, 500, 1000, 2000, 5000]
@@ -111,28 +115,37 @@ struct ResultsView: View {
             let middle = MapScene.midpoint(a, b)
 
             if isSelected {
-                MapCircle(center: middle, radius: max(miss.meters / 2 + 45, 75))
-                    .foregroundStyle(.white.opacity(0.07))
-                    .stroke(.white.opacity(0.45), lineWidth: 1)
-                MapPolyline(coordinates: [a, b])
-                    .stroke(.white, style: StrokeStyle(lineWidth: 2.5, lineCap: .round, dash: [3, 7]))
-                if miss.meters >= 150 {
-                    Annotation("", coordinate: middle, anchor: .center) {
-                        Text(Phrase.distance(miss.meters))
-                            .font(.caption.weight(.bold))
-                            .monospacedDigit()
-                            .foregroundStyle(Theme.bg)
-                            .padding(.horizontal, 9)
-                            .frame(height: 22)
-                            .background(.white, in: Capsule())
-                            .shadow(color: .black.opacity(0.4), radius: 6, y: 2)
+                let arrived = walk >= 1
+                let minePath = walkPaths.map { MapScene.walked($0.mine, progress: walk) } ?? [a]
+                let theirsPath = walkPaths.map { MapScene.walked($0.theirs, progress: walk) } ?? [b]
+
+                steps(minePath, color: Theme.coral)
+                steps(theirsPath, color: Theme.teal)
+
+                if arrived {
+                    MapCircle(center: middle, radius: max(miss.meters / 2 + 45, 75))
+                        .foregroundStyle(.white.opacity(0.07))
+                        .stroke(.white.opacity(0.45), lineWidth: 1)
+                    MapPolyline(coordinates: [a, b])
+                        .stroke(.white, style: StrokeStyle(lineWidth: 2.5, lineCap: .round, dash: [3, 7]))
+                    if miss.meters >= 150 {
+                        Annotation("", coordinate: middle, anchor: .center) {
+                            Text(Phrase.distance(miss.meters))
+                                .font(.caption.weight(.bold))
+                                .monospacedDigit()
+                                .foregroundStyle(Theme.bg)
+                                .padding(.horizontal, 9)
+                                .frame(height: 22)
+                                .background(.white, in: Capsule())
+                                .shadow(color: .black.opacity(0.4), radius: 6, y: 2)
+                        }
                     }
                 }
-                Annotation("Tú", coordinate: a, anchor: .center) {
-                    EndpointDot(color: Theme.coral)
+                Annotation("Tú", coordinate: minePath.last ?? a, anchor: .center) {
+                    Walker(color: Theme.coral, arrived: arrived, flipped: false, phase: walk)
                 }
-                Annotation(model.partnerName.capitalizedFirst, coordinate: b, anchor: .center) {
-                    EndpointDot(color: Theme.teal)
+                Annotation(model.partnerName.capitalizedFirst, coordinate: theirsPath.last ?? b, anchor: .center) {
+                    Walker(color: Theme.teal, arrived: arrived, flipped: true, phase: walk)
                 }
             } else {
                 Annotation("", coordinate: middle, anchor: .center) {
@@ -144,6 +157,17 @@ struct ResultsView: View {
                     .accessibilityLabel("Ver el casi del \(Phrase.date(miss.mine.day))")
                 }
             }
+        }
+    }
+
+    /// Footsteps: a soft glow with a line of round dots on top.
+    @MapContentBuilder
+    private func steps(_ path: [CLLocationCoordinate2D], color: Color) -> some MapContent {
+        if path.count >= 2 {
+            MapPolyline(coordinates: path)
+                .stroke(color.opacity(0.25), style: StrokeStyle(lineWidth: 12, lineCap: .round, lineJoin: .round))
+            MapPolyline(coordinates: path)
+                .stroke(color, style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round, dash: [0.1, 3.2]))
         }
     }
 
@@ -292,15 +316,44 @@ struct ResultsView: View {
     private func focus(animated: Bool) {
         guard let scene else { return }
         let target: MapCameraPosition
-        if let miss = cards.first(where: { $0.id == selection }), let street = MapScene.camera(for: miss) {
+        let miss = cards.first(where: { $0.id == selection })
+        if let miss, let street = MapScene.camera(for: miss) {
             target = street
         } else {
             target = .region(scene.region)
         }
+        startWalk(toward: miss)
         if animated, !reduceMotion {
             withAnimation(.easeInOut(duration: 1.8)) { camera = target }
         } else {
             camera = target
+        }
+    }
+}
+
+private extension ResultsView {
+    /// The two walk their last steps once the camera has come down to the street.
+    func startWalk(toward miss: NearMiss?) {
+        walkTask?.cancel()
+        guard let miss, miss.meters <= 4000, !reduceMotion, let paths = MapScene.walkPaths(for: miss) else {
+            walkPaths = nil
+            walk = 1
+            return
+        }
+        walkPaths = paths
+        walk = 0
+        walkTask = Task {
+            try? await Task.sleep(for: .milliseconds(1500))
+            let frames = 110
+            for frame in 1..<frames {
+                if Task.isCancelled { return }
+                let t = Double(frame) / Double(frames)
+                // Ease out: they slow down as they arrive.
+                walk = min(0.999, 1 - (1 - t) * (1 - t))
+                try? await Task.sleep(for: .milliseconds(33))
+            }
+            if Task.isCancelled { return }
+            withAnimation(.easeOut(duration: 0.5)) { walk = 1 }
         }
     }
 }
@@ -541,6 +594,31 @@ struct EndpointDot: View {
             .frame(width: 16, height: 16)
             .overlay(Circle().strokeBorder(.white, lineWidth: 2.5))
             .shadow(color: color, radius: 10)
+    }
+}
+
+/// One of the two, walking toward the near miss and then standing there.
+struct Walker: View {
+    let color: Color
+    let arrived: Bool
+    let flipped: Bool
+    let phase: Double
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(color)
+                .frame(width: 30, height: 30)
+                .overlay(Circle().strokeBorder(.white, lineWidth: 2.5))
+                .shadow(color: color, radius: 12)
+            Image(systemName: arrived ? "figure.stand" : "figure.walk")
+                .font(.system(size: 15, weight: .bold))
+                .foregroundStyle(Theme.bg)
+                .scaleEffect(x: flipped ? -1 : 1)
+        }
+        // A small bounce on every step.
+        .offset(y: arrived ? 0 : -abs(sin(phase * .pi * 16)) * 3)
+        .accessibilityHidden(true)
     }
 }
 
