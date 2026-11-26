@@ -82,6 +82,12 @@ project.yml     XcodeGen project definition
 - Distances are measured between cell centers, so they can be off by about 150 m.
 - Both people need an iPhone. Google Photos is not supported because its API does not return photo locations.
 
+## Landing page and App Store
+
+- `site/` is the landing page and the privacy policy (React and Vite). `npm install && npm run dev` inside it.
+- `tools/icon.swift` draws the app icon. `tools/archive.sh` builds the signed `.ipa`.
+- `docs/app-store.md` has the TestFlight and App Store checklist and the store text.
+
 ## License
 
 [MIT](LICENSE)

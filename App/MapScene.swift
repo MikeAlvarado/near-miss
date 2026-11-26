@@ -126,8 +126,9 @@ struct MapScene {
             // Mostly across the line between the two, so the whole walk stays on screen.
             let start = (x: end.x + side * (ux * length * 0.3 + px * length),
                          y: end.y + side * (uy * length * 0.3 + py * length))
-            let control = (x: end.x + side * (-ux * length * 0.25 + px * length * 0.5),
-                           y: end.y + side * (-uy * length * 0.25 + py * length * 0.5))
+            // The bend never brings them closer than where they end, so the distance only falls.
+            let control = (x: end.x + side * (ux * length * 0.35 + px * length * 0.3),
+                           y: end.y + side * (uy * length * 0.35 + py * length * 0.3))
             return (0...48).map { step in
                 let t = Double(step) / 48, r = 1 - t
                 return coordinate(
@@ -154,6 +155,11 @@ struct MapScene {
             ))
         }
         return result
+    }
+
+    static func meters(from a: CLLocationCoordinate2D, to b: CLLocationCoordinate2D) -> Double {
+        CLLocation(latitude: a.latitude, longitude: a.longitude)
+            .distance(from: CLLocation(latitude: b.latitude, longitude: b.longitude))
     }
 
     /// Compass direction from one point to another, in degrees.

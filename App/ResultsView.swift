@@ -182,6 +182,21 @@ struct ResultsView: View {
                 .foregroundStyle(Theme.text)
                 .contentTransition(.numericText())
                 .pill()
+        } else if walk < 1, let walkPaths,
+                  let mine = MapScene.walked(walkPaths.mine, progress: walk).last,
+                  let theirs = MapScene.walked(walkPaths.theirs, progress: walk).last {
+            // While they walk, the distance between them counts down.
+            HStack(spacing: 10) {
+                Text("DISTANCIA")
+                    .font(Theme.label)
+                    .kerning(1.2)
+                    .foregroundStyle(Theme.muted)
+                Text(Phrase.distance(MapScene.meters(from: mine, to: theirs)))
+                    .font(.system(.subheadline, design: .rounded).weight(.bold))
+                    .monospacedDigit()
+                    .foregroundStyle(Theme.text)
+            }
+            .pill()
         } else {
             HStack(spacing: 14) {
                 HStack(spacing: 7) {
