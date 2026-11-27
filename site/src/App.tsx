@@ -199,33 +199,27 @@ export function App() {
 
       <main>
         <section className="hero">
-          <TrailsCanvas />
-          <div className="hero-inner container">
-            <div className="hero-copy">
-              <motion.p className="label accent" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.8 }}>
-                {t.eyebrow}
-              </motion.p>
-              <h1 className="display" lang="en">
-                <Reveal text="You almost" italic="almost" />
-                <Reveal text="met." start={2} />
-              </h1>
-              <motion.p className="lede" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.55, ease }}>
-                {t.lede}
-              </motion.p>
-              <motion.div className="cta" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.7, ease }}>
-                <span className="button soon"><i className="pulse" />{t.soon}</span>
-                <a className="button ghost" href={REPO}><GitHubMark /> {t.code}</a>
-              </motion.div>
-              <motion.p className="fine" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.8, delay: 0.9 }}>
-                {t.fine}
-              </motion.p>
-            </div>
-            <motion.div className="hero-phones" initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 1.1, delay: 0.35, ease }}>
-              <div className="sun" aria-hidden />
-              <Phone shot="painting" alt="" className="behind" />
-              <Phone shot="near-miss" alt={t.heroAlt} className="front" />
+          <div className="hero-copy container">
+            <motion.p className="label accent" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.8 }}>
+              {t.eyebrow}
+            </motion.p>
+            <h1 className="display" lang="en">
+              <Reveal text="You almost met." italic="almost" />
+            </h1>
+            <motion.p className="lede" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.45, ease }}>
+              {t.lede}
+            </motion.p>
+            <motion.div className="cta" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.6, ease }}>
+              <span className="button soon"><i className="pulse" />{t.soon}</span>
+              <a className="button ghost" href={REPO}><GitHubMark /> {t.code}</a>
             </motion.div>
+            <motion.p className="fine" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.8, delay: 0.8 }}>
+              {t.fine}
+            </motion.p>
           </div>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1.2, delay: 0.3 }}>
+            <WalkScene />
+          </motion.div>
         </section>
 
         <div className="marquee" aria-hidden>
@@ -244,7 +238,11 @@ export function App() {
             <h2 className="display">{t.moment.title}</h2>
             <p className="lede">{t.moment.lede}</p>
           </Rise>
-          <Rise delay={0.1}><WalkScene /></Rise>
+          <Rise delay={0.1} className="hero-phones">
+            <div className="sun" aria-hidden />
+            <Phone shot="painting" alt="" className="behind" />
+            <Phone shot="near-miss" alt={t.heroAlt} className="front" />
+          </Rise>
         </section>
 
         <section className="container" id="how">

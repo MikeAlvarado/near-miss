@@ -10,10 +10,10 @@ const copy = {
   es: {
     aria: 'Animación: dos personas caminan y se detienen a 300 metros una de la otra, en la misma calle, el mismo día.',
     you: 'Tú',
-    label: '{t.label}',
-    date: '{t.date}',
+    label: 'Near miss 1 de 2 · El más cercano',
+    date: '17 de marzo de 2018',
     same: 'el mismo día',
-    note: '{t.note}',
+    note: 'Tú y Beto, a unos 4 min a pie, sin saberlo.',
   },
   en: {
     aria: 'Animation: two people walk and stop 300 meters from each other, on the same street, on the same day.',
@@ -26,18 +26,19 @@ const copy = {
 }
 
 const blocks: { x: number; y: number; w: number; h: number; park?: boolean; tone: number }[] = []
-for (let row = 0; row < 4; row++) {
-  for (let col = 0; col < 6; col++) {
+// The city runs past the edges of the drawing so it fills any width.
+for (let row = -2; row < 6; row++) {
+  for (let col = -5; col < 11; col++) {
     const park = row >= 1 && row <= 2 && col >= 2 && col <= 3
     if (park) continue
-    blocks.push({ x: 20 + col * 146, y: 16 + row * 126, w: 126, h: 106, tone: (row * 7 + col * 3) % 4 })
+    blocks.push({ x: 20 + col * 146, y: 16 + row * 126, w: 126, h: 106, tone: (((row * 7 + col * 3) % 4) + 4) % 4 })
   }
 }
 
 /** The moment the app shows: two people walk their last steps and stop 300 m apart. */
 export function WalkScene() {
   const ref = useRef<HTMLDivElement | null>(null)
-  const inView = useInView(ref, { amount: 0.45 })
+  const inView = useInView(ref, { amount: 0.2 })
   const reduced = useReducedMotion()
   const [run, setRun] = useState(0)
   const t = copy[useLang().lang]
