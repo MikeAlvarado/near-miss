@@ -1,4 +1,6 @@
 // Draws the app icon. Run: swift tools/icon.swift App/Assets.xcassets/AppIcon.appiconset/icon.png
+// Two people circle the same spot, each leaving a trail that fades before it reaches the other.
+// Orange and blue on warm white.
 import AppKit
 import CoreGraphics
 
@@ -6,85 +8,97 @@ let size = 1024
 let s = CGFloat(size)
 let space = CGColorSpace(name: CGColorSpace.sRGB)!
 // No alpha channel: the App Store rejects icons that have one.
+// Drawn four times larger and scaled down at the end, so the trails come out smooth.
+let over = 4
 let ctx = CGContext(
-    data: nil, width: size, height: size, bitsPerComponent: 8, bytesPerRow: 0,
+    data: nil, width: size * over, height: size * over, bitsPerComponent: 8, bytesPerRow: 0,
     space: space, bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue
 )!
+ctx.scaleBy(x: CGFloat(over), y: CGFloat(over))
+
+typealias Tone = (r: CGFloat, g: CGFloat, b: CGFloat)
 
 func rgb(_ r: CGFloat, _ g: CGFloat, _ b: CGFloat, _ a: CGFloat = 1) -> CGColor {
     CGColor(colorSpace: space, components: [r, g, b, a])!
 }
-let coral = (r: CGFloat(1.0), g: CGFloat(0.42), b: CGFloat(0.36))
-let teal = (r: CGFloat(0.21), g: CGFloat(0.82), b: CGFloat(0.75))
 
 func radial(_ center: CGPoint, _ radius: CGFloat, _ colors: [CGColor], _ stops: [CGFloat]) {
     let gradient = CGGradient(colorsSpace: space, colors: colors as CFArray, locations: stops)!
     ctx.drawRadialGradient(gradient, startCenter: center, startRadius: 0, endCenter: center, endRadius: radius, options: [])
 }
 
-// Night sky, lighter at the top. CoreGraphics has y pointing up.
-let sky = CGGradient(colorsSpace: space, colors: [rgb(0.035, 0.03, 0.06), rgb(0.12, 0.10, 0.21)] as CFArray, locations: [0, 1])!
-ctx.drawLinearGradient(sky, start: .zero, end: CGPoint(x: 0, y: s), options: [.drawsBeforeStartLocation, .drawsAfterEndLocation])
-// Each side of the city is lit by the one who walks there.
-radial(CGPoint(x: 200, y: 240), 620, [rgb(coral.r, coral.g, coral.b, 0.30), rgb(coral.r, coral.g, coral.b, 0)], [0, 1])
-radial(CGPoint(x: 824, y: 784), 620, [rgb(teal.r, teal.g, teal.b, 0.26), rgb(teal.r, teal.g, teal.b, 0)], [0, 1])
+// Warm white paper, a little warmer toward the bottom right. CoreGraphics has y pointing up.
+let paper = CGGradient(
+    colorsSpace: space,
+    colors: [rgb(1.0, 0.995, 0.985), rgb(1.0, 0.955, 0.915)] as CFArray,
+    locations: [0, 1]
+)!
+ctx.drawLinearGradient(paper, start: CGPoint(x: 0, y: s), end: CGPoint(x: s, y: 0), options: [.drawsBeforeStartLocation, .drawsAfterEndLocation])
 
-// City blocks seen from above, a little turned. The streets are the gaps between them.
-ctx.saveGState()
-ctx.translateBy(x: s / 2, y: s / 2)
-ctx.rotate(by: -.pi / 9)
-let block: CGFloat = 196, street: CGFloat = 40
-for row in -4...4 {
-    for col in -4...4 {
-        let x = CGFloat(col) * (block + street) - block / 2
-        let y = CGFloat(row) * (block + street) - block / 2
-        let park = row == 0 && col == 0
-        let tone = CGFloat((row * 7 + col * 3 + 40) % 4) * 0.012
-        ctx.setFillColor(park ? rgb(0.09, 0.33, 0.30, 0.95) : rgb(1, 1, 1, 0.05 + tone))
-        ctx.addPath(CGPath(roundedRect: CGRect(x: x, y: y, width: block, height: block), cornerWidth: 26, cornerHeight: 26, transform: nil))
+let center = CGPoint(x: s / 2, y: s / 2)
+let orbit: CGFloat = 222
+let ball: CGFloat = 124
+
+func place(_ degrees: CGFloat, _ radius: CGFloat) -> CGPoint {
+    let a = degrees * .pi / 180
+    return CGPoint(x: center.x + cos(a) * radius, y: center.y + sin(a) * radius)
+}
+
+/// A trail behind the ball: as wide as the ball where it starts, thinning to nothing.
+func trail(from start: CGFloat, _ tone: Tone, strength: CGFloat) {
+    let sweep: CGFloat = 168
+    let slices = 900
+    // Slices that do not blend at their edges leave no seams.
+    ctx.setShouldAntialias(false)
+    defer { ctx.setShouldAntialias(true) }
+    for i in 0..<slices {
+        let t0 = CGFloat(i) / CGFloat(slices)
+        let t1 = CGFloat(i + 1) / CGFloat(slices)
+        let w0 = ball * pow(1 - t0, 0.85)
+        let w1 = ball * pow(1 - t1 < 0 ? 0 : 1 - t1, 0.85)
+        let a0 = start - sweep * t0
+        let a1 = start - sweep * t1
+        ctx.beginPath()
+        ctx.move(to: place(a0, orbit + w0))
+        ctx.addLine(to: place(a1, orbit + w1))
+        ctx.addLine(to: place(a1, orbit - w1))
+        ctx.addLine(to: place(a0, orbit - w0))
+        ctx.closePath()
+        ctx.setFillColor(rgb(tone.r, tone.g, tone.b, strength * pow(1 - t0, 1.5)))
         ctx.fillPath()
     }
 }
-ctx.restoreGState()
 
-// Darken the corners so the two points carry the icon.
-radial(CGPoint(x: s / 2, y: s / 2), s * 0.78, [rgb(0, 0, 0, 0), rgb(0, 0, 0, 0), rgb(0.02, 0.02, 0.04, 0.72)], [0, 0.5, 1])
-
-let mine = CGPoint(x: 300, y: 400)
-let theirs = CGPoint(x: 724, y: 624)
-
-// The gap that was never crossed.
-ctx.saveGState()
-ctx.setShadow(offset: .zero, blur: 18, color: rgb(1, 1, 1, 0.5))
-ctx.setStrokeColor(rgb(1, 1, 1, 0.96))
-ctx.setLineWidth(26)
-ctx.setLineCap(.round)
-ctx.setLineDash(phase: 0, lengths: [0.1, 62])
-ctx.move(to: CGPoint(x: mine.x + 106, y: mine.y + 56)); ctx.addLine(to: CGPoint(x: theirs.x - 92, y: theirs.y - 49))
-ctx.strokePath()
-ctx.restoreGState()
-
-/// Where one of the two stood: a ball of color with a white ring, glowing.
-func point(_ c: (r: CGFloat, g: CGFloat, b: CGFloat), _ center: CGPoint) {
-    radial(center, 300, [rgb(c.r, c.g, c.b, 0.6), rgb(c.r, c.g, c.b, 0.18), rgb(c.r, c.g, c.b, 0)], [0, 0.5, 1])
-    let outer: CGFloat = 122, ring: CGFloat = 26
+func orb(at degrees: CGFloat, _ tone: Tone, light: Tone, dark: Tone) {
+    let c = place(degrees, orbit)
     ctx.saveGState()
-    ctx.setShadow(offset: CGSize(width: 0, height: -10), blur: 30, color: rgb(0, 0, 0, 0.5))
-    ctx.setFillColor(rgb(1, 0.985, 0.96))
-    ctx.fillEllipse(in: CGRect(x: center.x - outer, y: center.y - outer, width: outer * 2, height: outer * 2))
+    ctx.setShadow(offset: CGSize(width: 0, height: -18), blur: 44, color: rgb(0.30, 0.16, 0.08, 0.28))
+    ctx.setFillColor(rgb(tone.r, tone.g, tone.b))
+    ctx.fillEllipse(in: CGRect(x: c.x - ball, y: c.y - ball, width: ball * 2, height: ball * 2))
     ctx.restoreGState()
-    let inner = outer - ring
     ctx.saveGState()
-    ctx.addEllipse(in: CGRect(x: center.x - inner, y: center.y - inner, width: inner * 2, height: inner * 2))
+    ctx.addEllipse(in: CGRect(x: c.x - ball, y: c.y - ball, width: ball * 2, height: ball * 2))
     ctx.clip()
-    radial(CGPoint(x: center.x - 26, y: center.y + 34), inner * 1.7, [
-        rgb(min(1, c.r + 0.14), min(1, c.g + 0.14), min(1, c.b + 0.14)), rgb(c.r, c.g, c.b), rgb(c.r * 0.7, c.g * 0.7, c.b * 0.7),
-    ], [0, 0.45, 1])
+    radial(CGPoint(x: c.x - ball * 0.34, y: c.y + ball * 0.4), ball * 1.75, [
+        rgb(light.r, light.g, light.b), rgb(tone.r, tone.g, tone.b), rgb(dark.r, dark.g, dark.b),
+    ], [0, 0.5, 1])
     ctx.restoreGState()
 }
-point(coral, mine)
-point(teal, theirs)
 
-let image = ctx.makeImage()!
+let orange: Tone = (1.0, 0.36, 0.12)
+let blue: Tone = (0.16, 0.50, 0.98)
+
+trail(from: 52, blue, strength: 0.5)
+trail(from: 232, orange, strength: 0.5)
+orb(at: 52, blue, light: (0.50, 0.76, 1.0), dark: (0.05, 0.30, 0.82))
+orb(at: 232, orange, light: (1.0, 0.66, 0.38), dark: (0.88, 0.20, 0.02))
+
+let final = CGContext(
+    data: nil, width: size, height: size, bitsPerComponent: 8, bytesPerRow: 0,
+    space: space, bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue
+)!
+final.interpolationQuality = .high
+final.draw(ctx.makeImage()!, in: CGRect(x: 0, y: 0, width: size, height: size))
+let image = final.makeImage()!
 let rep = NSBitmapImageRep(cgImage: image)
 try! rep.representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: CommandLine.arguments[1]))

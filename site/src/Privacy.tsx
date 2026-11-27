@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { LangToggle, useLang, type Lang } from './lang'
-import { ISSUES, REPO, asset, base } from './site'
+import { ISSUES, asset, base } from './site'
 
 type Section = { title: string; body: ReactNode }
 
@@ -31,7 +31,8 @@ const copy: Record<Lang, { home: string; label: string; title: string; updated: 
       { title: 'Cómo borrar tus datos', body: <p>Borra la app y con ella se borran tu rastro y el de tu pareja. Puedes quitar el permiso de fotos cuando quieras en Ajustes &gt; Privacidad y seguridad &gt; Fotos.</p> },
       { title: 'Menores', body: <p>Near Miss no recopila datos de nadie, tampoco de menores de edad.</p> },
       { title: 'Este sitio', body: <p>Esta página está alojada en GitHub Pages. GitHub puede registrar datos técnicos de la visita, como la dirección IP, según su propia política. El sitio no usa cookies ni analítica; solo guarda en tu navegador el idioma que elijas.</p> },
-      { title: 'Cambios y contacto', body: <p>Si esta política cambia, la fecha de arriba cambia con ella. El código es abierto y cualquiera puede comprobar lo que dice esta página en el <a href={REPO}>repositorio</a>. Para dudas o problemas, abre un tema en <a href={ISSUES}>GitHub</a>.</p> },
+      { title: 'Si dejas tu correo', body: <p>La página tiene un campo para que te avisemos cuando salga la app. Si lo usas, tu correo y el idioma de la página se guardan en un formulario de Google (Google Forms) y solo se usan para mandarte ese aviso. No se comparten con nadie más. Para que lo borremos, pídelo en <a href={ISSUES}>Soporte</a>.</p> },
+      { title: 'Cambios y contacto', body: <p>Si esta política cambia, la fecha de arriba cambia con ella. El código será abierto, para que cualquiera pueda comprobar lo que dice esta página; lo publicamos muy pronto. Para dudas o problemas, escribe en <a href={ISSUES}>Soporte</a>.</p> },
     ],
   },
   en: {
@@ -60,7 +61,8 @@ const copy: Record<Lang, { home: string; label: string; title: string; updated: 
       { title: 'How to delete your data', body: <p>Delete the app, and your trail and your partner's are deleted with it. You can remove the photo permission at any time in Settings &gt; Privacy &amp; Security &gt; Photos.</p> },
       { title: 'Children', body: <p>Near Miss collects no data from anyone, children included.</p> },
       { title: 'This site', body: <p>This page is hosted on GitHub Pages. GitHub may log technical data about the visit, such as the IP address, under its own policy. The site uses no cookies or analytics; it only stores the language you choose in your browser.</p> },
-      { title: 'Changes and contact', body: <p>If this policy changes, the date above changes with it. The code is open and anyone can check what this page says in the <a href={REPO}>repository</a>. For questions or problems, open an issue on <a href={ISSUES}>GitHub</a>.</p> },
+      { title: 'If you leave your email', body: <p>The page has a field so we can tell you when the app is out. If you use it, your email and the page language are stored in a Google form (Google Forms) and are used only to send you that notice. They are not shared with anyone else. To have it deleted, ask in <a href={ISSUES}>Support</a>.</p> },
+      { title: 'Changes and contact', body: <p>If this policy changes, the date above changes with it. The code will be open, so anyone can check what this page says; it is coming soon. For questions or problems, write to <a href={ISSUES}>Support</a>.</p> },
     ],
   },
 }
@@ -77,7 +79,6 @@ export function Privacy() {
         </a>
         <nav>
           <a href={base}>{t.home}</a>
-          <a href={REPO}>GitHub</a>
           <LangToggle />
         </nav>
       </header>
@@ -97,7 +98,6 @@ export function Privacy() {
         <nav>
           <a href={base}>{t.home}</a>
           <a href={ISSUES}>{t.support}</a>
-          <a href={REPO}>GitHub</a>
         </nav>
       </footer>
     </>

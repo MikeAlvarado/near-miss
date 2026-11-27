@@ -6,9 +6,9 @@ set -eu
 : "${TEAM_ID:?Set TEAM_ID to your Apple Developer team id}"
 cd "$(dirname "$0")/.."
 xcodegen generate
-rm -rf build/Casi.xcarchive build/export
+rm -rf build/NearMiss.xcarchive build/export
 xcodebuild -project NearMiss.xcodeproj -scheme NearMiss -configuration Release \
-  -destination 'generic/platform=iOS' -archivePath build/Casi.xcarchive \
+  -destination 'generic/platform=iOS' -archivePath build/NearMiss.xcarchive \
   DEVELOPMENT_TEAM="$TEAM_ID" -allowProvisioningUpdates archive
 cat > build/ExportOptions.plist <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -22,6 +22,6 @@ cat > build/ExportOptions.plist <<PLIST
 </dict>
 </plist>
 PLIST
-xcodebuild -exportArchive -archivePath build/Casi.xcarchive -exportPath build/export \
+xcodebuild -exportArchive -archivePath build/NearMiss.xcarchive -exportPath build/export \
   -exportOptionsPlist build/ExportOptions.plist -allowProvisioningUpdates
 echo "Ready: build/export/NearMiss.ipa"
