@@ -346,6 +346,153 @@ img {
   }
 }
 
+/* Leave your email */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.waitlist {
+  width: min(460px, 100%);
+}
+
+.waitlist-field {
+  display: flex;
+  gap: 6px;
+  padding: 6px;
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 18px 40px -22px rgb(150 70 15 / 0.5);
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
+}
+
+.waitlist-field:focus-within {
+  border-color: var(--orange);
+  box-shadow:
+    0 0 0 4px rgb(255 90 31 / 0.16),
+    0 18px 40px -22px rgb(150 70 15 / 0.5);
+}
+
+.waitlist input {
+  flex: 1;
+  min-width: 0;
+  height: 46px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px;
+  outline: none;
+}
+
+.waitlist input::placeholder {
+  color: var(--dim);
+}
+
+.waitlist button {
+  height: 46px;
+  padding: 0 22px;
+  border: 0;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--orange), var(--orange-deep));
+  color: #fff;
+  font: inherit;
+  font-size: 15.5px;
+  font-weight: 650;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.35);
+  transition:
+    transform 0.2s var(--ease),
+    filter 0.2s;
+}
+
+.waitlist button:hover {
+  filter: brightness(1.06);
+}
+
+.waitlist button:active {
+  transform: scale(0.97);
+}
+
+.waitlist button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.waitlist-note {
+  margin-top: 10px;
+  font-size: 13.5px;
+  color: var(--dim);
+}
+
+.waitlist-done {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  height: 58px;
+  padding: 0 24px;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--ink);
+  font-weight: 650;
+  box-shadow: 0 18px 40px -22px rgb(150 70 15 / 0.5);
+}
+
+.waitlist-done span {
+  color: var(--orange-text);
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 22px;
+  margin-top: 18px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.badges span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.badges .pulse {
+  color: var(--orange);
+}
+
+.closing .waitlist-field {
+  border-color: transparent;
+  box-shadow: 0 18px 40px -18px rgb(90 25 0 / 0.6);
+}
+
+.closing .waitlist-field:focus-within {
+  box-shadow:
+    0 0 0 4px rgb(255 255 255 / 0.4),
+    0 18px 40px -18px rgb(90 25 0 / 0.6);
+}
+
+.closing .waitlist-note,
+.closing .badges {
+  color: rgb(255 255 255 / 0.85);
+}
+
+.closing .badges .pulse {
+  color: #fff;
+}
+
 .fine {
   margin-top: 20px;
   font-size: 13.5px;

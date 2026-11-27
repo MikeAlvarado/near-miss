@@ -1,8 +1,9 @@
 import { motion, useReducedMotion, useScroll, useTransform, type MotionValue } from 'motion/react'
 import { useRef, type ReactNode } from 'react'
 import { LangToggle, useLang, type Lang } from './lang'
-import { ISSUES, REPO, asset, base } from './site'
+import { ISSUES, asset, base } from './site'
 import { TrailsCanvas } from './TrailsCanvas'
+import { Waitlist } from './Waitlist'
 import { WalkScene } from './WalkScene'
 
 const ease = [0.23, 1, 0.32, 1] as const
@@ -31,7 +32,7 @@ const copy: Record<Lang, Copy> = {
     eyebrow: 'Antes de conocerse',
     lede: 'Tus fotos saben dónde estuviste cada día. Las de tu pareja también. Near Miss las compara y pinta en un mapa las veces que estuvieron a unas calles, sin saberlo.',
     soon: 'Pronto en TestFlight',
-    code: 'Ver el código',
+    code: 'Código abierto, muy pronto',
     fine: 'Para iPhone · Gratis · Tus fotos no salen de tu teléfono',
     heroAlt: 'Near Miss mostrando dos personas a 300 metros en la Alameda, el mismo día',
     marquee: ['a 300 m', 'el mismo día', 'sin saberlo', 'en la misma cuadra', 'a 4 min a pie', 'tres años antes', 'en el mismo concierto', 'a una calle'],
@@ -57,11 +58,11 @@ const copy: Record<Lang, Copy> = {
         ['Qué lee', 'La fecha y la ubicación de cada foto. Nunca la imagen.'],
         ['Precisión', 'Celdas de unos 150 m y el día. Tu pareja recibe eso, no direcciones exactas.'],
         ['Mapa', 'Es el mapa de Apple: Apple ve qué zona se muestra, no tus fotos ni tus rastros.'],
-        ['Código', 'Abierto, con licencia MIT. Puedes leer cada línea.'],
+        ['Código', 'Será abierto, con licencia MIT. Lo publicamos muy pronto.'],
       ],
       more: 'Leer la política de privacidad completa →',
     },
-    numbers: [['0', 'servidores'], ['150 m', 'tamaño de cada celda'], ['2', 'teléfonos, nada más'], ['MIT', 'código abierto']],
+    numbers: [['0', 'servidores'], ['150 m', 'tamaño de cada celda'], ['2', 'teléfonos, nada más'], ['MIT', 'código abierto, muy pronto']],
     footer: { license: 'Licencia MIT', privacy: 'Privacidad', support: 'Soporte', links: 'Enlaces' },
   },
   en: {
@@ -69,7 +70,7 @@ const copy: Record<Lang, Copy> = {
     eyebrow: 'Before you met',
     lede: "Your photos know where you were every day. So do your partner's. Near Miss compares them and paints on a map the times you were a few streets apart, without knowing it.",
     soon: 'Coming soon to TestFlight',
-    code: 'View the code',
+    code: 'Open source, code coming soon',
     fine: 'For iPhone · Free · Your photos never leave your phone',
     heroAlt: 'Near Miss showing two people 300 meters apart in a park, on the same day',
     marquee: ['300 m away', 'the same day', 'without knowing it', 'on the same block', 'a 4 min walk', 'three years earlier', 'at the same concert', 'one street over'],
@@ -95,11 +96,11 @@ const copy: Record<Lang, Copy> = {
         ['What it reads', 'The date and location of each photo. Never the image.'],
         ['Precision', 'Cells of about 150 m and the day. Your partner gets that, not exact addresses.'],
         ['Map', "It is Apple's map: Apple sees which area is shown, not your photos or your trails."],
-        ['Code', 'Open, under the MIT license. You can read every line.'],
+        ['Code', 'It will be open, under the MIT license. Coming soon.'],
       ],
       more: 'Read the full privacy policy →',
     },
-    numbers: [['0', 'servers'], ['150 m', 'size of each cell'], ['2', 'phones, nothing else'], ['MIT', 'open source']],
+    numbers: [['0', 'servers'], ['150 m', 'size of each cell'], ['2', 'phones, nothing else'], ['MIT', 'open source, coming soon']],
     footer: { license: 'MIT License', privacy: 'Privacy', support: 'Support', links: 'Links' },
   },
 }
@@ -192,7 +193,6 @@ export function App() {
         <nav aria-label={t.nav.sections}>
           <a href="#how">{t.nav.how}</a>
           <a href="#privacy">{t.nav.privacy}</a>
-          <a href={REPO}><GitHubMark /> GitHub</a>
           <LangToggle />
         </nav>
       </header>
@@ -210,9 +210,12 @@ export function App() {
               {t.lede}
             </motion.p>
             <motion.div className="cta" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.6, ease }}>
-              <span className="button soon"><i className="pulse" />{t.soon}</span>
-              <a className="button ghost" href={REPO}><GitHubMark /> {t.code}</a>
+              <Waitlist />
             </motion.div>
+            <motion.p className="badges" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.8, delay: 0.7 }}>
+              <span><i className="pulse" />{t.soon}</span>
+              <span><GitHubMark /> {t.code}</span>
+            </motion.p>
             <motion.p className="fine" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.8, delay: 0.8 }}>
               {t.fine}
             </motion.p>
@@ -296,9 +299,12 @@ export function App() {
             <img src={asset('icon.png')} alt="" width="88" height="88" className="closing-icon" />
             <h2 className="display" lang="en">Did you two<br /><em>almost</em> meet?</h2>
             <div className="cta">
-              <span className="button soon"><i className="pulse" />{t.soon}</span>
-              <a className="button ghost" href={REPO}><GitHubMark /> {t.code}</a>
+              <Waitlist />
             </div>
+            <p className="badges">
+              <span><i className="pulse" />{t.soon}</span>
+              <span><GitHubMark /> {t.code}</span>
+            </p>
           </Rise>
         </section>
       </main>
@@ -308,7 +314,6 @@ export function App() {
         <nav aria-label={t.footer.links}>
           <a href={`${base}privacidad/`}>{t.footer.privacy}</a>
           <a href={ISSUES}>{t.footer.support}</a>
-          <a href={REPO}>GitHub</a>
         </nav>
       </footer>
     </>
