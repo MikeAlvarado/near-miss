@@ -1,7 +1,9 @@
 import { useEffect, useRef } from 'react'
 
-const CORAL = '255, 107, 92'
-const TEAL = '54, 209, 191'
+const TONES = {
+  light: { a: '255, 90, 31', b: '28, 21, 16', dots: 'rgba(28, 21, 16, 0.1)', ring: '255, 90, 31', glow: 0.35 },
+  orange: { a: '255, 255, 255', b: '58, 20, 4', dots: 'rgba(255, 255, 255, 0.22)', ring: '255, 255, 255', glow: 0.5 },
+}
 const CYCLE = 9000
 
 type Point = [number, number]
@@ -19,8 +21,8 @@ function at(curve: Curve, t: number): Point {
   ]
 }
 
-/** Two trails of light cross a dark city and pass a few steps from each other. */
-export function TrailsCanvas() {
+/** Two trails cross a city and pass a few steps from each other. */
+export function TrailsCanvas({ tone = 'light' }: { tone?: keyof typeof TONES }) {
   const ref = useRef<HTMLCanvasElement | null>(null)
 
   useEffect(() => {
@@ -29,6 +31,7 @@ export function TrailsCanvas() {
     const ctx = canvas.getContext('2d')
     if (!ctx) return
     const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const colors = TONES[tone]
     let frame = 0
     let width = 0
     let height = 0
@@ -57,18 +60,20 @@ export function TrailsCanvas() {
       }
       ctx.lineCap = 'round'
       ctx.lineJoin = 'round'
-      ctx.shadowColor = `rgba(${rgb}, ${0.9 * fade})`
-      ctx.shadowBlur = 26
+      ctx.shadowColor = `rgba(${rgb}, ${colors.glow * fade})`
+      ctx.shadowBlur = 18
       ctx.strokeStyle = `rgba(${rgb}, ${fade})`
       ctx.lineWidth = 3
       ctx.stroke()
-      ctx.stroke()
-      ctx.shadowBlur = 18
-      ctx.fillStyle = `rgba(255, 255, 255, ${fade})`
-      ctx.beginPath()
-      ctx.arc(head[0], head[1], 5, 0, Math.PI * 2)
-      ctx.fill()
       ctx.shadowBlur = 0
+      ctx.fillStyle = `rgba(${rgb}, ${0.18 * fade})`
+      ctx.beginPath()
+      ctx.arc(head[0], head[1], 13, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.fillStyle = `rgba(${rgb}, ${fade})`
+      ctx.beginPath()
+      ctx.arc(head[0], head[1], 6, 0, Math.PI * 2)
+      ctx.fill()
     }
 
     const draw = (now: number) => {
@@ -78,7 +83,7 @@ export function TrailsCanvas() {
       ctx.clearRect(0, 0, w, h)
 
       // Street corners, like a city seen from far above.
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.07)'
+      ctx.fillStyle = colors.dots
       for (let x = 15; x < w; x += 30) {
         for (let y = 15; y < h; y += 30) ctx.fillRect(x - 1, y - 1, 2, 2)
       }
@@ -96,8 +101,8 @@ export function TrailsCanvas() {
       const eased = Math.min(1, t / 0.6)
       const drawn = eased * eased * (3 - 2 * eased)
       const fade = t > 0.9 ? Math.max(0, 1 - (t - 0.9) / 0.1) : 1
-      trail(coral, drawn, CORAL, fade)
-      trail(teal, drawn, TEAL, fade)
+      trail(coral, drawn, colors.a, fade)
+      trail(teal, drawn, colors.b, fade)
 
       // The near miss: rings where the two pass each other.
       const passed = (t - 0.33) / 0.5
@@ -106,7 +111,7 @@ export function TrailsCanvas() {
           const ring = passed - offset
           if (ring <= 0 || ring >= 0.65) continue
           const life = ring / 0.65
-          ctx.strokeStyle = `rgba(255, 255, 255, ${0.5 * (1 - life) * fade})`
+          ctx.strokeStyle = `rgba(${colors.ring}, ${0.6 * (1 - life) * fade})`
           ctx.lineWidth = 1.5
           ctx.beginPath()
           ctx.arc(cx, 0.52 * h, 10 + 60 * life, 0, Math.PI * 2)
@@ -127,7 +132,7 @@ export function TrailsCanvas() {
       cancelAnimationFrame(frame)
       observer.disconnect()
     }
-  }, [])
+  }, [tone])
 
   return <canvas ref={ref} className="trails" aria-hidden />
 }

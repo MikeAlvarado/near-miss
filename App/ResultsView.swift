@@ -42,7 +42,7 @@ struct ResultsView: View {
                 } label: {
                     Image(systemName: "arrow.counterclockwise")
                 }
-                .accessibilityLabel("Volver a pintar el mapa")
+                .accessibilityLabel(L("Volver a pintar el mapa", "Paint the map again"))
                 .disabled(isReplaying)
 
                 Button {
@@ -50,7 +50,7 @@ struct ResultsView: View {
                 } label: {
                     Image(systemName: "slider.horizontal.3")
                 }
-                .accessibilityLabel("Ajustar qué cuenta como casi")
+                .accessibilityLabel(L("Ajustar qué cuenta como casi", "Adjust what counts as almost"))
             }
         }
         .sheet(isPresented: $showingTuning) {
@@ -141,7 +141,7 @@ struct ResultsView: View {
                         }
                     }
                 }
-                Annotation("Tú", coordinate: minePath.last ?? a, anchor: .center) {
+                Annotation(L("Tú", "You"), coordinate: minePath.last ?? a, anchor: .center) {
                     Walker(color: Theme.coral, arrived: arrived, flipped: false, phase: walk)
                 }
                 Annotation(model.partnerName.capitalizedFirst, coordinate: theirsPath.last ?? b, anchor: .center) {
@@ -154,7 +154,7 @@ struct ResultsView: View {
                     } label: {
                         PulseMarker()
                     }
-                    .accessibilityLabel("Ver el casi del \(Phrase.date(miss.mine.day))")
+                    .accessibilityLabel(L("Ver el near miss del \(Phrase.date(miss.mine.day))", "See the near miss of \(Phrase.date(miss.mine.day))"))
                 }
             }
         }
@@ -187,7 +187,7 @@ struct ResultsView: View {
                   let theirs = MapScene.walked(walkPaths.theirs, progress: walk).last {
             // While they walk, the distance between them counts down.
             HStack(spacing: 10) {
-                Text("DISTANCIA")
+                Text(L("DISTANCIA", "DISTANCE"))
                     .font(Theme.label)
                     .kerning(1.2)
                     .foregroundStyle(Theme.muted)
@@ -201,7 +201,7 @@ struct ResultsView: View {
             HStack(spacing: 14) {
                 HStack(spacing: 7) {
                     GlowDot(color: Theme.coral)
-                    Text("Tú")
+                    Text(L("Tú", "You"))
                 }
                 HStack(spacing: 7) {
                     GlowDot(color: Theme.teal)
@@ -268,10 +268,10 @@ struct ResultsView: View {
 
     private func label(for miss: NearMiss, at index: Int) -> String {
         guard let comparison = model.comparison else { return "" }
-        if comparison.matches.isEmpty { return "LO MÁS CERCA QUE ESTUVIERON" }
-        if comparison.matches.count == 1 { return "EL CASI" }
-        let position = "CASI \(index + 1) DE \(comparison.matches.count)"
-        return miss == comparison.closest ? "\(position) · EL MÁS CERCANO" : position
+        if comparison.matches.isEmpty { return L("LO MÁS CERCA QUE ESTUVIERON", "THE CLOSEST YOU EVER GOT") }
+        if comparison.matches.count == 1 { return L("EL NEAR MISS", "THE NEAR MISS") }
+        let position = L("NEAR MISS \(index + 1) DE \(comparison.matches.count)", "NEAR MISS \(index + 1) OF \(comparison.matches.count)")
+        return miss == comparison.closest ? position + L(" · EL MÁS CERCANO", " · THE CLOSEST") : position
     }
 
     private var sceneKey: String {
@@ -385,17 +385,17 @@ struct OverviewCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             if isReplaying {
-                Text("PINTANDO EL MAPA")
+                Text(L("PINTANDO EL MAPA", "PAINTING THE MAP"))
                     .font(Theme.label)
                     .kerning(1.4)
                     .foregroundStyle(Theme.muted)
-                Text("Por dónde anduvo cada quien…")
+                Text(L("Por dónde anduvo cada quien…", "Where each of you has been…"))
                     .font(Theme.title(26))
                     .foregroundStyle(Theme.text)
                     .fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 0)
                 HStack(spacing: 14) {
-                    HStack(spacing: 7) { GlowDot(color: Theme.coral); Text("Tú") }
+                    HStack(spacing: 7) { GlowDot(color: Theme.coral); Text(L("Tú", "You")) }
                     HStack(spacing: 7) { GlowDot(color: Theme.teal); Text(partner.capitalizedFirst) }
                 }
                 .font(.footnote.weight(.semibold))
@@ -403,45 +403,45 @@ struct OverviewCard: View {
             } else if let comparison {
                 let count = comparison.matches.count
                 if count > 0 {
-                    Text("CASI SE CONOCEN")
+                    Text(L("CASI SE CONOCEN", "YOU ALMOST MET"))
                         .font(Theme.label)
                         .kerning(1.4)
                         .foregroundStyle(Theme.muted)
-                    Text(count == 1 ? "1 vez" : "\(count) veces")
+                    Text(count == 1 ? L("1 vez", "1 time") : L("\(count) veces", "\(count) times"))
                         .font(Theme.title(52))
                         .foregroundStyle(Theme.coral)
                         .contentTransition(.numericText())
                         .animation(.snappy, value: count)
                     Spacer(minLength: 0)
-                    footer(hint: "Desliza para verlas")
+                    footer(hint: L("Desliza para verlas", "Swipe to see them"))
                 } else if let closest = comparison.closest {
-                    Text("NUNCA SE CRUZARON")
+                    Text(L("NUNCA SE CRUZARON", "YOU NEVER CROSSED PATHS"))
                         .font(Theme.label)
                         .kerning(1.4)
                         .foregroundStyle(Theme.muted)
                     Text(closest.meters <= 10_000 && closest.dayGap <= 30
-                        ? "Pero una vez estuvieron cerca."
-                        : "Esto es lo más cerca que llegaron.")
+                        ? L("Pero una vez estuvieron cerca.", "But once you were close.")
+                        : L("Esto es lo más cerca que llegaron.", "This is the closest you ever got."))
                         .font(Theme.title(26))
                         .foregroundStyle(Theme.text)
                         .fixedSize(horizontal: false, vertical: true)
                     Spacer(minLength: 0)
-                    footer(hint: "Desliza para verlo")
+                    footer(hint: L("Desliza para verlo", "Swipe to see it"))
                 } else {
-                    Text("SIN DATOS")
+                    Text(L("SIN DATOS", "NO DATA"))
                         .font(Theme.label)
                         .kerning(1.4)
                         .foregroundStyle(Theme.muted)
-                    Text("No hay con qué comparar.")
+                    Text(L("No hay con qué comparar.", "Nothing to compare."))
                         .font(Theme.title(26))
                         .foregroundStyle(Theme.text)
-                    Text("Alguno de los dos rastros no tiene lugares en ese periodo. Prueba quitando la fecha en que se conocieron.")
+                    Text(L("Alguno de los dos rastros no tiene lugares en ese periodo. Prueba quitando la fecha en que se conocieron.", "One of the two trails has no places in that period. Try removing the date you met."))
                         .font(.footnote)
                         .foregroundStyle(Theme.muted)
                     Spacer(minLength: 0)
                 }
             } else {
-                ProgressView("Comparando…")
+                ProgressView(L("Comparando…", "Comparing…"))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
@@ -450,7 +450,7 @@ struct OverviewCard: View {
     private func footer(hint: String) -> some View {
         HStack {
             Button(action: tune) {
-                Label("Ajustar", systemImage: "slider.horizontal.3")
+                Label(L("Ajustar", "Adjust"), systemImage: "slider.horizontal.3")
             }
             .buttonStyle(SecondaryButtonStyle())
             Spacer()
@@ -487,7 +487,7 @@ struct MissCard: View {
                     .foregroundStyle(Theme.text)
                     .lineLimit(1)
                     .fixedSize()
-                Text(miss.dayGap == 0 ? "el mismo día" : "y \(Phrase.gap(miss.dayGap))")
+                Text(miss.dayGap == 0 ? L("el mismo día", "the same day") : L("y \(Phrase.gap(miss.dayGap))", "and \(Phrase.gap(miss.dayGap))"))
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(Theme.muted)
                     .lineLimit(1)
@@ -503,7 +503,7 @@ struct MissCard: View {
 
             if let url = mapsURL {
                 Link(destination: url) {
-                    Label("Abrir en Mapas", systemImage: "map")
+                    Label(L("Abrir en Mapas", "Open in Maps"), systemImage: "map")
                         .font(.footnote.weight(.semibold))
                 }
                 .tint(Theme.teal)
@@ -514,15 +514,15 @@ struct MissCard: View {
     private var detail: String {
         if miss.dayGap == 0 {
             if miss.meters < 150 {
-                return "Tú y \(partner) en la misma cuadra, sin saberlo."
+                return L("Tú y \(partner) en la misma cuadra, sin saberlo.", "You and \(partner) on the same block, without knowing it.")
             }
             if miss.meters <= 1500 {
                 let minutes = max(1, Int((miss.meters / 80).rounded()))
-                return "Tú y \(partner), a unos \(minutes) min a pie, sin saberlo."
+                return L("Tú y \(partner), a unos \(minutes) min a pie, sin saberlo.", "You and \(partner), about a \(minutes) min walk apart, without knowing it.")
             }
-            return "Tú y \(partner) en la misma zona, sin saberlo."
+            return L("Tú y \(partner) en la misma zona, sin saberlo.", "You and \(partner) in the same area, without knowing it.")
         }
-        return "Tú, el \(Phrase.shortDate(miss.mine.day)); \(partner), el \(Phrase.shortDate(miss.theirs.day))."
+        return L("Tú, el \(Phrase.shortDate(miss.mine.day)); \(partner), el \(Phrase.shortDate(miss.theirs.day)).", "You, on \(Phrase.shortDate(miss.mine.day)); \(partner), on \(Phrase.shortDate(miss.theirs.day)).")
     }
 
     /// Opens Apple Maps at the midpoint. It leaves the app only when tapped.
@@ -542,13 +542,13 @@ struct TuningSheet: View {
         let index = ResultsView.distances.firstIndex(of: model.tolerance.meters) ?? 2
 
         VStack(alignment: .leading, spacing: 18) {
-            Text("¿Qué cuenta como “casi”?")
+            Text(L("¿Qué cuenta como “casi”?", "What counts as “almost”?"))
                 .font(Theme.title(24))
                 .foregroundStyle(Theme.text)
                 .padding(.top, 8)
 
             VStack(alignment: .leading, spacing: 4) {
-                Text("A menos de \(Phrase.distance(model.tolerance.meters))")
+                Text(L("A menos de \(Phrase.distance(model.tolerance.meters))", "Within \(Phrase.distance(model.tolerance.meters))"))
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(Theme.text)
                 Slider(
@@ -559,7 +559,7 @@ struct TuningSheet: View {
                     in: 0...Double(ResultsView.distances.count - 1),
                     step: 1
                 )
-                .accessibilityLabel("Distancia máxima")
+                .accessibilityLabel(L("Distancia máxima", "Maximum distance"))
                 .accessibilityValue(Phrase.distance(model.tolerance.meters))
             }
 
@@ -572,7 +572,7 @@ struct TuningSheet: View {
             Divider().overlay(Theme.line)
 
             Toggle(isOn: $model.onlyBeforeMeeting) {
-                Text("Solo antes de conocernos")
+                Text(L("Solo antes de conocernos", "Only before we met"))
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(Theme.text)
             }
@@ -580,7 +580,7 @@ struct TuningSheet: View {
 
             if model.onlyBeforeMeeting {
                 DatePicker(
-                    "Nos conocimos el",
+                    L("Nos conocimos el", "We met on"),
                     selection: $model.metDate,
                     in: ...Date(),
                     displayedComponents: .date

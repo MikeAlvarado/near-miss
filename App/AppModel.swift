@@ -44,7 +44,7 @@ final class AppModel {
 
     var partnerName: String {
         let name = partnerTrail?.name ?? ""
-        return name.isEmpty ? "tu pareja" : name
+        return name.isEmpty ? L("tu pareja", "your partner") : name
     }
 
     // MARK: - My trail
@@ -72,7 +72,7 @@ final class AppModel {
             .components(separatedBy: CharacterSet.alphanumerics.inverted)
             .filter { !$0.isEmpty }
             .joined(separator: "-")
-        let fileName = (slug.isEmpty ? "mi-rastro" : "rastro-\(slug)") + "." + TrailCodec.fileExtension
+        let fileName = (slug.isEmpty ? L("mi-rastro", "my-trail") : L("rastro-", "trail-") + slug) + "." + TrailCodec.fileExtension
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
         do {
             try data.write(to: url, options: .atomic)
@@ -90,13 +90,13 @@ final class AppModel {
 
         let size = (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
         guard size <= 50_000_000, let data = try? Data(contentsOf: url) else {
-            importMessage = "No se pudo leer ese archivo."
+            importMessage = L("No se pudo leer ese archivo.", "That file could not be read.")
             return
         }
         do {
             let trail = try TrailCodec.decode(data)
             if let mine = myTrail, demo == nil, mine.sightings == trail.sightings, !mine.sightings.isEmpty {
-                importMessage = "Ese es tu propio rastro. Pídele a tu pareja el suyo."
+                importMessage = L("Ese es tu propio rastro. Pídele a tu pareja el suyo.", "That is your own trail. Ask your partner for theirs.")
                 return
             }
             leaveDemo()
@@ -105,9 +105,9 @@ final class AppModel {
             importMessage = nil
             recompute()
         } catch TrailCodec.DecodingFailure.unsupportedVersion {
-            importMessage = "Ese rastro viene de una versión más nueva de la app."
+            importMessage = L("Ese rastro viene de una versión más nueva de la app.", "That trail comes from a newer version of the app.")
         } catch {
-            importMessage = "Ese archivo no es un rastro de Casi."
+            importMessage = L("Ese archivo no es un rastro de Near Miss.", "That file is not a Near Miss trail.")
         }
     }
 

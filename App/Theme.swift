@@ -79,12 +79,12 @@ struct GlowDot: View {
     }
 }
 
-/// Words for distances, gaps and days. The interface is in Spanish.
+/// Words for distances, gaps and days, in Spanish or English.
 enum Phrase {
-    static let locale = Locale(identifier: "es_MX")
+    static let locale = Locale(identifier: Lang.english ? "en_US" : "es_MX")
 
     static func distance(_ meters: Double) -> String {
-        if meters < 150 { return "menos de 150 m" }
+        if meters < 150 { return L("menos de 150 m", "less than 150 m") }
         if meters < 950 {
             let rounded = Int((meters / 50).rounded() * 50)
             return "\(rounded) m"
@@ -101,36 +101,45 @@ enum Phrase {
 
     static func gap(_ days: Int) -> String {
         switch days {
-        case 0: return "el mismo día"
-        case 1: return "1 día de diferencia"
-        case ..<60: return "\(days) días de diferencia"
-        case ..<730: return "\(Int((Double(days) / 30.44).rounded())) meses de diferencia"
-        default: return "\(Int((Double(days) / 365.25).rounded())) años de diferencia"
+        case 0: return L("el mismo día", "the same day")
+        case 1: return L("1 día de diferencia", "1 day apart")
+        case ..<60: return L("\(days) días de diferencia", "\(days) days apart")
+        case ..<730:
+            let months = Int((Double(days) / 30.44).rounded())
+            return L("\(months) meses de diferencia", "\(months) months apart")
+        default:
+            let years = Int((Double(days) / 365.25).rounded())
+            return L("\(years) años de diferencia", "\(years) years apart")
         }
     }
 
     static func tolerance(days: Int) -> String {
         switch days {
-        case 0: return "El mismo día"
-        case 1: return "Hasta 1 día de diferencia"
-        default: return "Hasta \(days) días de diferencia"
+        case 0: return L("El mismo día", "The same day")
+        case 1: return L("Hasta 1 día de diferencia", "Up to 1 day apart")
+        default: return L("Hasta \(days) días de diferencia", "Up to \(days) days apart")
         }
     }
 
     static func date(_ day: Int) -> String {
-        format(day, "d 'de' MMMM 'de' yyyy")
+        format(day, L("d 'de' MMMM 'de' yyyy", "MMMM d, yyyy"))
     }
 
     static func shortDate(_ day: Int) -> String {
-        format(day, "d MMM yyyy")
+        format(day, L("d MMM yyyy", "MMM d, yyyy"))
     }
 
     static func monthAndYear(_ day: Int) -> String {
-        format(day, "MMMM 'de' yyyy")
+        format(day, L("MMMM 'de' yyyy", "MMMM yyyy"))
     }
 
     static func count(_ n: Int, _ singular: String, _ plural: String) -> String {
         "\(n.formatted(.number.locale(locale))) \(n == 1 ? singular : plural)"
+    }
+
+    /// "1,204 places and days": how big a trail is.
+    static func places(_ n: Int) -> String {
+        count(n, L("lugar y día", "place and day"), L("lugares y días", "places and days"))
     }
 
     private static func format(_ day: Int, _ pattern: String) -> String {

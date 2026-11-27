@@ -24,26 +24,26 @@ struct WelcomeView: View {
                 )
 
             VStack(alignment: .leading, spacing: 0) {
-                Text("ANTES DE CONOCERSE")
+                Text(L("ANTES DE CONOCERSE", "BEFORE YOU MET"))
                     .font(Theme.label)
                     .kerning(1.6)
                     .foregroundStyle(Theme.coral)
                     .padding(.bottom, 12)
 
-                Text("¿Casi se\nconocen?")
+                Text(verbatim: "You almost\nmet.")
                     .font(Theme.title(54))
                     .foregroundStyle(Theme.text)
 
-                Text("Quizá ya estuvieron en la misma calle el mismo día. Tus fotos y las de tu pareja lo saben; esta app lo pinta en el mapa.")
+                Text(L("Quizá ya estuvieron en la misma calle el mismo día. Tus fotos y las de tu pareja lo saben; esta app lo pinta en el mapa.", "Maybe you were already on the same street on the same day. Your photos and your partner's know; this app paints it on the map."))
                     .font(.body)
                     .foregroundStyle(Theme.muted)
                     .padding(.top, 14)
                     .padding(.bottom, 28)
 
-                Button("Empezar", action: start)
+                Button(L("Empezar", "Start"), action: start)
                     .buttonStyle(PrimaryButtonStyle())
 
-                Label("Tus fotos no salen de tu iPhone.", systemImage: "lock.fill")
+                Label(L("Tus fotos no salen de tu iPhone.", "Your photos never leave your iPhone."), systemImage: "lock.fill")
                     .font(.footnote)
                     .foregroundStyle(Theme.muted)
                     .frame(maxWidth: .infinity)

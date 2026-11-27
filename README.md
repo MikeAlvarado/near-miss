@@ -1,10 +1,10 @@
-# near-miss (Casi)
+# Near Miss
 
 An iPhone app that shows every time you and your partner almost met before you met.
 
 It reads only the date and the place of the photos on each phone, turns them into a short list of "map cell + day", compares the two lists, and paints both trails on a map. The reading and the comparison run on the device. There is no server, no account and no analytics.
 
-The interface is in Spanish; the app's name on the home screen is **Casi**.
+The app and the landing page are in English and Spanish, following the device or browser language; the name is **Near Miss** in both.
 
 | Start | The map paints itself | The near miss |
 | --- | --- | --- |

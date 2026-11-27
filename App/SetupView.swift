@@ -20,10 +20,10 @@ struct SetupView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Tres pasos")
+                    Text(L("Tres pasos", "Three steps"))
                         .font(Theme.title(38))
                         .foregroundStyle(Theme.text)
-                    Text("Cada quien lee sus fotos en su teléfono y se mandan el rastro.")
+                    Text(L("Cada quien lee sus fotos en su teléfono y se mandan el rastro.", "Each of you reads your photos on your own phone, then you send each other the trail."))
                         .font(.subheadline)
                         .foregroundStyle(Theme.muted)
                 }
@@ -31,11 +31,11 @@ struct SetupView: View {
 
                 if model.demo != nil { demoBanner }
 
-                step(number: 1, title: "Tu rastro", color: Theme.coral, done: model.myTrail != nil) { myTrailStep }
-                step(number: 2, title: "Mándaselo a tu pareja", color: Theme.text, done: false) { shareStep }
-                step(number: 3, title: "El rastro de tu pareja", color: Theme.teal, done: model.partnerTrail != nil) { partnerStep }
+                step(number: 1, title: L("Tu rastro", "Your trail"), color: Theme.coral, done: model.myTrail != nil) { myTrailStep }
+                step(number: 2, title: L("Mándaselo a tu pareja", "Send it to your partner"), color: Theme.text, done: false) { shareStep }
+                step(number: 3, title: L("El rastro de tu pareja", "Your partner's trail"), color: Theme.teal, done: model.partnerTrail != nil) { partnerStep }
 
-                Button("Pintar el mapa", action: showResults)
+                Button(L("Pintar el mapa", "Paint the map"), action: showResults)
                     .buttonStyle(PrimaryButtonStyle())
                     .disabled(!model.canCompare)
                     .padding(.top, 6)
@@ -64,12 +64,12 @@ struct SetupView: View {
             Text(summary(of: trail))
                 .foregroundStyle(Theme.text)
             if case .done(let total, let located) = model.scanState {
-                Text("De \(Phrase.count(total, "foto o video", "fotos y videos")), \(located.formatted()) tienen ubicación.")
+                Text(L("De \(Phrase.count(total, "foto o video", "fotos y videos")), \(located.formatted()) tienen ubicación.", "Of \(Phrase.count(total, "photo or video", "photos and videos")), \(located.formatted()) have a location."))
                     .font(.footnote)
                     .foregroundStyle(Theme.muted)
             }
         } else {
-            Text("La app lee la fecha y la ubicación de tus fotos y las reduce a cuadros del mapa de unos 150 m y días. No abre ni copia ninguna foto.")
+            Text(L("La app lee la fecha y la ubicación de tus fotos y las reduce a cuadros del mapa de unos 150 m y días. No abre ni copia ninguna foto.", "The app reads the date and location of your photos and reduces them to map cells of about 150 m and days. It never opens or copies a photo."))
                 .foregroundStyle(Theme.muted)
         }
 
@@ -77,19 +77,19 @@ struct SetupView: View {
         case .scanning:
             HStack(spacing: 10) {
                 ProgressView()
-                Text("Leyendo tus fotos…").foregroundStyle(Theme.muted)
+                Text(L("Leyendo tus fotos…", "Reading your photos…")).foregroundStyle(Theme.muted)
             }
         case .denied:
-            Text("Sin permiso para ver tus fotos no hay rastro. Puedes darlo en Ajustes.")
+            Text(L("Sin permiso para ver tus fotos no hay rastro. Puedes darlo en Ajustes.", "Without access to your photos there is no trail. You can allow it in Settings."))
                 .font(.footnote)
                 .foregroundStyle(Theme.coral)
-            Button("Abrir Ajustes") {
+            Button(L("Abrir Ajustes", "Open Settings")) {
                 if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
             }
             .buttonStyle(SecondaryButtonStyle())
         default:
             if model.demo == nil {
-                Button(model.myTrail == nil ? "Leer mis fotos" : "Volver a leer mis fotos") {
+                Button(model.myTrail == nil ? L("Leer mis fotos", "Read my photos") : L("Volver a leer mis fotos", "Read my photos again")) {
                     Task { await model.scanPhotos() }
                 }
                 .buttonStyle(SecondaryButtonStyle())
@@ -99,9 +99,9 @@ struct SetupView: View {
 
     @ViewBuilder
     private var shareStep: some View {
-        Text("Tu pareja necesita tu rastro, y tú el suyo. Se manda como un archivo por AirDrop o Mensajes.")
+        Text(L("Tu pareja necesita tu rastro, y tú el suyo. Se manda como un archivo por AirDrop o Mensajes.", "Your partner needs your trail, and you need theirs. It is sent as a file over AirDrop or Messages."))
             .foregroundStyle(Theme.muted)
-        Button("Compartir mi rastro") { showingExport = true }
+        Button(L("Compartir mi rastro", "Share my trail")) { showingExport = true }
             .buttonStyle(SecondaryButtonStyle())
             .disabled(model.myTrail == nil)
     }
@@ -112,7 +112,7 @@ struct SetupView: View {
             Text((trail.name.isEmpty ? "" : "\(trail.name): ") + summary(of: trail))
                 .foregroundStyle(Theme.text)
         } else {
-            Text("Cuando te llegue su archivo, ábrelo con Casi o impórtalo aquí.")
+            Text(L("Cuando te llegue su archivo, ábrelo con Near Miss o impórtalo aquí.", "When their file arrives, open it with Near Miss or import it here."))
                 .foregroundStyle(Theme.muted)
         }
         if let message = model.importMessage {
@@ -121,7 +121,7 @@ struct SetupView: View {
                 .foregroundStyle(Theme.coral)
         }
         if model.demo == nil {
-            Button(model.partnerTrail == nil ? "Importar archivo" : "Importar otro archivo") {
+            Button(model.partnerTrail == nil ? L("Importar archivo", "Import file") : L("Importar otro archivo", "Import another file")) {
                 showingImporter = true
             }
             .buttonStyle(SecondaryButtonStyle())
@@ -132,10 +132,10 @@ struct SetupView: View {
 
     private var demoBanner: some View {
         HStack(alignment: .firstTextBaseline) {
-            Label("Demo: Ana y \(model.partnerName) no existen.", systemImage: "theatermasks.fill")
+            Label(L("Demo: Ana y \(model.partnerName) no existen.", "Demo: Ana and \(model.partnerName) are not real."), systemImage: "theatermasks.fill")
                 .font(.subheadline.weight(.medium))
             Spacer()
-            Button("Salir") { model.leaveDemo() }
+            Button(L("Salir", "Exit")) { model.leaveDemo() }
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(Theme.coral)
         }
@@ -147,10 +147,10 @@ struct SetupView: View {
 
     private var demoMenu: some View {
         Menu {
-            Button("Demo: sí se cruzaron") { model.startDemo(.match) }
-            Button("Demo: nunca se cruzaron") { model.startDemo(.noMatch) }
+            Button(L("Demo: sí se cruzaron", "Demo: they did cross paths")) { model.startDemo(.match) }
+            Button(L("Demo: nunca se cruzaron", "Demo: they never crossed paths")) { model.startDemo(.noMatch) }
         } label: {
-            Text("Probar con datos de demostración")
+            Text(L("Probar con datos de demostración", "Try it with demo data"))
                 .font(.subheadline.weight(.semibold))
                 .frame(maxWidth: .infinity, minHeight: 44)
         }
@@ -199,10 +199,10 @@ struct SetupView: View {
 
     private func summary(of trail: Trail) -> String {
         guard let range = trail.dayRange else {
-            return "No hay fotos con ubicación."
+            return L("No hay fotos con ubicación.", "No photos with a location.")
         }
-        let places = Phrase.count(trail.sightings.count, "lugar y día", "lugares y días")
-        return "\(places), de \(Phrase.monthAndYear(range.lowerBound)) a \(Phrase.monthAndYear(range.upperBound))."
+        let places = Phrase.places(trail.sightings.count)
+        return L("\(places), de \(Phrase.monthAndYear(range.lowerBound)) a \(Phrase.monthAndYear(range.upperBound)).", "\(places), from \(Phrase.monthAndYear(range.lowerBound)) to \(Phrase.monthAndYear(range.upperBound)).")
     }
 }
 
@@ -218,26 +218,26 @@ struct ExportSheet: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
-                    Text("Esto es lo que recibe tu pareja")
+                    Text(L("Esto es lo que recibe tu pareja", "This is what your partner gets"))
                         .font(Theme.title(28))
                         .foregroundStyle(Theme.text)
 
                     Card {
                         VStack(alignment: .leading, spacing: 14) {
-                            fact("mappin.and.ellipse", "Lugares aproximados", "Cuadros del mapa de unos 150 m donde tomaste fotos. Quien lo reciba puede ver por dónde anduviste.")
-                            fact("calendar", "Fechas", "El día de cada foto, sin la hora.")
-                            fact("photo.badge.checkmark", "Ninguna foto", "Ni las imágenes ni las coordenadas exactas salen de tu iPhone.")
+                            fact("mappin.and.ellipse", L("Lugares aproximados", "Approximate places"), L("Cuadros del mapa de unos 150 m donde tomaste fotos. Quien lo reciba puede ver por dónde anduviste.", "Map cells of about 150 m where you took photos. Whoever gets it can see where you have been."))
+                            fact("calendar", L("Fechas", "Dates"), L("El día de cada foto, sin la hora.", "The day of each photo, without the time."))
+                            fact("photo.badge.checkmark", L("Ninguna foto", "No photos"), L("Ni las imágenes ni las coordenadas exactas salen de tu iPhone.", "Neither the images nor the exact coordinates leave your iPhone."))
                         }
                     }
 
                     if let trail = model.myTrail {
-                        Text("Tu rastro tiene \(Phrase.count(trail.sightings.count, "lugar y día", "lugares y días")). Va directo a quien tú elijas; no pasa por ningún servidor de la app.")
+                        Text(L("Tu rastro tiene \(Phrase.places(trail.sightings.count)). Va directo a quien tú elijas; no pasa por ningún servidor de la app.", "Your trail has \(Phrase.places(trail.sightings.count)). It goes straight to whoever you choose; it never passes through any server of the app."))
                             .font(.footnote)
                             .foregroundStyle(Theme.muted)
                     }
 
                     if model.demo == nil {
-                        TextField("Tu nombre (opcional)", text: $model.myName)
+                        TextField(L("Tu nombre (opcional)", "Your name (optional)"), text: $model.myName)
                             .textInputAutocapitalization(.words)
                             .foregroundStyle(Theme.text)
                             .padding(14)
@@ -248,7 +248,7 @@ struct ExportSheet: View {
 
                     if let fileURL, model.myTrail != nil {
                         ShareLink(item: fileURL) {
-                            Label("Elegir a quién mandarlo", systemImage: "square.and.arrow.up")
+                            Label(L("Elegir a quién mandarlo", "Choose who to send it to"), systemImage: "square.and.arrow.up")
                         }
                         .buttonStyle(PrimaryButtonStyle())
                     }
@@ -258,7 +258,7 @@ struct ExportSheet: View {
             .background(Theme.bg.ignoresSafeArea())
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cerrar") { dismiss() }
+                    Button(L("Cerrar", "Close")) { dismiss() }
                 }
             }
             .onAppear { fileURL = model.exportFile() }

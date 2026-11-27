@@ -3,7 +3,7 @@ options:
   deploymentTarget:
     iOS: "17.0"
   createIntermediateGroups: true
-  developmentLanguage: es
+  developmentLanguage: en
 packages:
   NearMissCore:
     path: NearMissCore
@@ -28,11 +28,12 @@ targets:
     info:
       path: App/Info.plist
       properties:
-        CFBundleDisplayName: Casi
+        CFBundleDisplayName: Near Miss
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
-        CFBundleDevelopmentRegion: es
+        CFBundleDevelopmentRegion: en
         CFBundleLocalizations:
+          - en
           - es
         UILaunchScreen:
           UIColorName: LaunchBackground
@@ -42,19 +43,19 @@ targets:
         ITSAppUsesNonExemptEncryption: false
         LSSupportsOpeningDocumentsInPlace: false
         NSPhotoLibraryUsageDescription: >-
-          Casi lee solo la fecha y la ubicación de tus fotos para encontrar
-          dónde tú y tu pareja casi se cruzan. Las fotos no se abren, no se
-          copian y nada sale de tu iPhone.
+          Near Miss reads only the date and location of your photos to find
+          where you and your partner almost crossed paths. Photos are never
+          opened or copied, and nothing leaves your iPhone.
         UTExportedTypeDeclarations:
           - UTTypeIdentifier: io.github.mikealvarado.nearmiss.trail
-            UTTypeDescription: Rastro de Casi
+            UTTypeDescription: Near Miss trail
             UTTypeConformsTo:
               - public.json
             UTTypeTagSpecification:
               public.filename-extension:
                 - nearmiss
         CFBundleDocumentTypes:
-          - CFBundleTypeName: Rastro de Casi
+          - CFBundleTypeName: Near Miss trail
             CFBundleTypeRole: Viewer
             LSHandlerRank: Owner
             LSItemContentTypes:
